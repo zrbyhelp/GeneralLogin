@@ -3,6 +3,31 @@ import { getPortalUser } from "~/server/utils/auth";
 import { tryNormalizeUrl } from "~/server/utils/crypto";
 import { prisma } from "~/server/utils/prisma";
 
+async function findService(params: { serviceId?: string; clientId?: string; serviceSlug?: string }) {
+  if (params.serviceId) {
+    return prisma.serviceApp.findUnique({
+      where: { id: params.serviceId },
+      select: { id: true }
+    });
+  }
+
+  if (params.clientId) {
+    return prisma.serviceApp.findUnique({
+      where: { clientId: params.clientId },
+      select: { id: true }
+    });
+  }
+
+  if (params.serviceSlug) {
+    return prisma.serviceApp.findFirst({
+      where: { slug: params.serviceSlug },
+      select: { id: true }
+    });
+  }
+
+  return null;
+}
+
 function cleanText(value: unknown, maxLength: number, label: string) {
   if (typeof value !== "string") {
     return "";
@@ -26,6 +51,8 @@ export default defineEventHandler(async (event) => {
     contact?: string;
     serviceSlug?: string;
     serviceId?: string;
+    clientId?: string;
+    client_id?: string;
     userId?: string;
     sourceUrl?: string;
   }>(event);
@@ -34,6 +61,9 @@ export default defineEventHandler(async (event) => {
   const content = cleanText(body.content, 2000, "内容");
   const contact = cleanText(body.contact, 200, "联系方式") || null;
   const sourceUrl = cleanText(body.sourceUrl, 2048, "来源地址") || null;
+  const serviceId = cleanText(body.serviceId, 128, "服务 ID");
+  const clientId = cleanText(body.clientId || body.client_id, 128, "Client ID");
+  const serviceSlug = cleanText(body.serviceSlug, 120, "服务标识");
 
   if (!content) {
     throw createError({ statusCode: 400, statusMessage: "请输入投诉或建议内容" });
@@ -43,17 +73,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const session = await getPortalUser(event).catch(() => null);
-  const service = body.serviceId || body.serviceSlug
-    ? await prisma.serviceApp.findFirst({
-        where: {
-          OR: [
-            body.serviceId ? { id: body.serviceId } : undefined,
-            body.serviceSlug ? { slug: body.serviceSlug } : undefined
-          ].filter(Boolean) as never
-        },
-        select: { id: true }
-      })
-    : null;
+  const service = await findService({ serviceId, clientId, serviceSlug });
   const queryUser = !session?.profile.id && body.userId
     ? await prisma.userProfile.findUnique({
         where: { id: body.userId },

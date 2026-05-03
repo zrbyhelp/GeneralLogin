@@ -15,6 +15,22 @@
           </select>
         </label>
 
+        <label v-if="!clientServiceLocked">
+          <span class="field-label">{{ t("feedback.service") }}</span>
+          <select v-model="selectedServiceId" class="field-input" :disabled="servicesLoading">
+            <option value="">
+              {{ servicesLoading ? t("feedback.loadingServices") : t("feedback.noSpecificService") }}
+            </option>
+            <option
+              v-for="service in services"
+              :key="service.id"
+              :value="service.id"
+            >
+              {{ service.name }}
+            </option>
+          </select>
+        </label>
+
         <label>
           <span class="field-label">{{ t("feedback.content") }}</span>
           <textarea
@@ -54,7 +70,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
+
+type PublicService = {
+  id: string;
+  name: string;
+  slug: string;
+  clientId: string;
+};
 
 const route = useRoute();
 const { t, localizeError } = usePortalI18n();
@@ -62,11 +85,48 @@ const submitting = ref(false);
 const submitted = ref(false);
 const errorMessage = ref("");
 const embed = computed(() => String(route.query.embed || "") === "1");
+const clientId = computed(() => String(route.query.client_id || route.query.clientId || ""));
+const clientServiceLocked = computed(() => Boolean(clientId.value));
+const services = ref<PublicService[]>([]);
+const servicesLoading = ref(false);
+const selectedServiceId = ref(clientServiceLocked.value ? "" : String(route.query.service_id || ""));
 const form = reactive({
   type: "suggestion",
   content: "",
   contact: ""
 });
+
+function selectServiceFromQuery() {
+  if (clientId.value) {
+    selectedServiceId.value =
+      services.value.find((service) => service.clientId === clientId.value)?.id || "";
+    return;
+  }
+
+  if (selectedServiceId.value) {
+    return;
+  }
+
+  const serviceSlug = String(route.query.service_slug || "");
+  if (serviceSlug) {
+    selectedServiceId.value =
+      services.value.find((service) => service.slug === serviceSlug)?.id || "";
+  }
+}
+
+async function loadServices() {
+  servicesLoading.value = true;
+
+  try {
+    const result = await $fetch<{ services: PublicService[] }>("/api/public/services");
+    services.value = result.services;
+    selectServiceFromQuery();
+  } catch {
+    services.value = [];
+  } finally {
+    servicesLoading.value = false;
+  }
+}
 
 async function submitFeedback() {
   submitting.value = true;
@@ -79,7 +139,11 @@ async function submitFeedback() {
         type: form.type,
         content: form.content,
         contact: form.contact || undefined,
-        serviceSlug: route.query.service_slug ? String(route.query.service_slug) : undefined,
+        serviceId: selectedServiceId.value || undefined,
+        clientId: clientId.value || undefined,
+        serviceSlug: !selectedServiceId.value && route.query.service_slug
+          ? String(route.query.service_slug)
+          : undefined,
         userId: route.query.user_id ? String(route.query.user_id) : undefined,
         sourceUrl: route.query.source_url ? String(route.query.source_url) : undefined
       }
@@ -95,6 +159,12 @@ async function submitFeedback() {
 function closeWindow() {
   window.close();
 }
+
+onMounted(() => {
+  if (!clientServiceLocked.value) {
+    loadServices();
+  }
+});
 </script>
 
 <style scoped>

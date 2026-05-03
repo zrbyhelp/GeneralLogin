@@ -6,7 +6,6 @@
 
     <section class="login-panel">
       <div class="login-copy">
-        <img class="brand-logo" src="/logo.png" :alt="appName" />
         <p class="eyebrow">{{ t("login.eyebrow") }}</p>
         <h1>{{ appName }}</h1>
         <div class="managed-tags" :aria-label="t('login.managedServicesLabel')">
@@ -428,15 +427,6 @@ onMounted(async () => {
   padding: clamp(34px, 5vw, 58px);
   border-right: 1px solid var(--page-border);
   background: var(--page-surface);
-}
-
-.brand-logo {
-  display: block;
-  width: clamp(58px, 9vw, 88px);
-  height: clamp(58px, 9vw, 88px);
-  margin-bottom: 18px;
-  border-radius: 18px;
-  object-fit: contain;
 }
 
 .eyebrow {
