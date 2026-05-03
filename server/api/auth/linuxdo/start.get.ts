@@ -1,4 +1,4 @@
-import { getQuery, setCookie, sendRedirect } from "h3";
+import { createError, getQuery, setCookie, sendRedirect } from "h3";
 import {
   buildExternalLoginState,
   getLinuxdoAuthorizeUrl
@@ -16,6 +16,14 @@ export default defineEventHandler(async (event) => {
   const theme = typeof query.theme === "string" ? query.theme : "";
   const locale = typeof query.locale === "string" ? query.locale : "";
   const loginHint = typeof query.login_hint === "string" ? query.login_hint : "";
+  const agreementAccepted = query.agreement_accepted === "1";
+
+  if (!agreementAccepted) {
+    throw createError({
+      statusCode: 400,
+      message: "请先阅读并同意隐私权和服务条款"
+    });
+  }
 
   const portalState = generateToken(24);
   setCookie(

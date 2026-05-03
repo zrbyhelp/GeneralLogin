@@ -64,14 +64,25 @@
             />
           </label>
 
-          <button class="primary-btn auth-submit" type="submit" :disabled="submitting">
+          <div class="agreement-box">
+            <div class="agreement-row">
+              <input id="login-agreement" v-model="agreementAccepted" type="checkbox" />
+              <label for="login-agreement">{{ t("login.agreementPrefix") }}</label>
+              <button class="agreement-link" type="button" @click="termsVisible = true">
+                {{ t("login.agreementLink") }}
+              </button>
+              <label for="login-agreement">{{ t("login.agreementSuffix") }}</label>
+            </div>
+          </div>
+
+          <button class="primary-btn auth-submit" type="submit" :disabled="submitting || !agreementAccepted">
             {{ mode === "login" ? t("login.accountLogin") : t("login.accountRegister") }}
           </button>
         </form>
 
         <div class="divider"><span>{{ t("login.or") }}</span></div>
 
-        <button class="linuxdo-btn" type="button" @click="startLinuxdoLogin">
+        <button class="linuxdo-btn" type="button" :disabled="submitting || !agreementAccepted" @click="startLinuxdoLogin">
           {{ t("login.linuxdoLogin") }}
         </button>
 
@@ -148,6 +159,29 @@
       </div>
       <p v-if="docsServices.length === 0" class="muted docs-note">{{ t("login.noDocs") }}</p>
     </el-dialog>
+
+    <el-dialog v-model="termsVisible" :title="t('login.agreementTitle')" width="680px">
+      <div class="terms-copy">
+        <p>{{ t("login.agreementIntro") }}</p>
+        <section class="terms-section">
+          <h3>{{ t("login.agreementDataTitle") }}</h3>
+          <p>{{ t("login.agreementDataBody") }}</p>
+        </section>
+        <section class="terms-section">
+          <h3>{{ t("login.agreementUseTitle") }}</h3>
+          <p>{{ t("login.agreementUseBody") }}</p>
+        </section>
+        <section class="terms-section">
+          <h3>{{ t("login.agreementContentTitle") }}</h3>
+          <p>{{ t("login.agreementContentBody") }}</p>
+        </section>
+        <section class="terms-section">
+          <h3>{{ t("login.agreementResponsibilityTitle") }}</h3>
+          <p>{{ t("login.agreementResponsibilityBody") }}</p>
+        </section>
+        <p class="terms-footnote">{{ t("login.agreementFooter") }}</p>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -184,6 +218,8 @@ const form = reactive({
 const servicesReady = ref(false);
 const creditsVisible = ref(false);
 const docsVisible = ref(false);
+const termsVisible = ref(false);
+const agreementAccepted = ref(false);
 
 const clientId = computed(() => String(route.query.client_id || ""));
 const callbackUrl = computed(() => String(route.query.callback || ""));
@@ -267,8 +303,14 @@ async function continueAfterAuth() {
 }
 
 async function submitEmailAuth() {
-  submitting.value = true;
   errorMessage.value = "";
+
+  if (!agreementAccepted.value) {
+    errorMessage.value = t("error.agreementRequired");
+    return;
+  }
+
+  submitting.value = true;
 
   try {
     const endpoint = mode.value === "login" ? "/api/auth/login" : "/api/auth/register";
@@ -277,7 +319,8 @@ async function submitEmailAuth() {
       body: {
         account: form.account,
         password: form.password,
-        name: form.name || undefined
+        name: form.name || undefined,
+        agreementAccepted: true
       }
     });
     await continueAfterAuth();
@@ -290,6 +333,13 @@ async function submitEmailAuth() {
 }
 
 function startLinuxdoLogin() {
+  errorMessage.value = "";
+
+  if (!agreementAccepted.value) {
+    errorMessage.value = t("error.agreementRequired");
+    return;
+  }
+
   const params = new URLSearchParams();
   if (clientId.value) {
     params.set("client_id", clientId.value);
@@ -302,6 +352,7 @@ function startLinuxdoLogin() {
   }
   params.set("theme", theme.value);
   params.set("locale", locale.value);
+  params.set("agreement_accepted", "1");
   window.location.href = `/api/auth/linuxdo/start${params.toString() ? `?${params}` : ""}`;
 }
 
@@ -496,6 +547,46 @@ h1 {
   width: 100%;
 }
 
+.agreement-box {
+  border: 1px solid var(--page-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: var(--page-surface-soft);
+}
+
+.agreement-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--page-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.agreement-row input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 2px 2px 0 0;
+  accent-color: var(--page-accent);
+}
+
+.agreement-row label {
+  cursor: pointer;
+}
+
+.agreement-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--page-accent);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .divider {
   position: relative;
   display: grid;
@@ -531,6 +622,14 @@ h1 {
     box-shadow 0.15s ease,
     filter 0.15s ease,
     transform 0.15s ease;
+}
+
+.auth-submit:disabled,
+.linuxdo-btn:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  opacity: 0.62;
+  transform: none;
 }
 
 .login-preferences {
@@ -607,9 +706,43 @@ h1 {
   transform: translateY(-1px);
 }
 
+.auth-submit:disabled:hover,
+.linuxdo-btn:disabled:hover {
+  transform: none;
+}
+
 .error-text {
   margin: 14px 0 0;
   color: #b91c1c;
+}
+
+.terms-copy {
+  display: grid;
+  gap: 12px;
+  color: var(--page-text);
+  line-height: 1.7;
+}
+
+.terms-copy p {
+  margin: 0;
+}
+
+.terms-section {
+  border: 1px solid var(--page-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--page-surface);
+}
+
+.terms-section h3 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.terms-footnote {
+  color: var(--page-muted);
+  font-size: 12px;
 }
 
 .small-note {

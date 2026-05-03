@@ -40,6 +40,52 @@
         </div>
       </section>
 
+      <section class="panel-card panel-card--strong server-card">
+        <div class="server-card__header">
+          <div>
+            <h2 class="server-card__title">{{ t("admin.serverInfo") }}</h2>
+            <p class="server-card__meta">
+              {{ t("admin.serverUpdatedAt", { time: formatDateTime(serverInfo.sampledAt) }) }}
+            </p>
+          </div>
+          <button class="ghost-btn compact-admin-btn" type="button" :disabled="serverLoading" @click="loadServerInfo">
+            {{ serverLoading ? t("common.loading") : t("admin.refreshServerInfo") }}
+          </button>
+        </div>
+
+        <p v-if="serverError" class="server-card__error">{{ serverError }}</p>
+
+        <div class="server-metrics">
+          <div v-for="metric in serverMetrics" :key="metric.key" class="server-metric">
+            <div class="server-metric__header">
+              <span>{{ metric.label }}</span>
+              <strong>{{ metric.percent }}%</strong>
+            </div>
+            <el-progress :percentage="metric.percent" :color="metric.color" :show-text="false" />
+            <p class="server-metric__detail">{{ metric.detail }}</p>
+          </div>
+        </div>
+
+        <div class="server-facts">
+          <div>
+            <span>{{ t("admin.hostname") }}</span>
+            <strong>{{ serverInfo.hostname || "-" }}</strong>
+          </div>
+          <div>
+            <span>{{ t("admin.platform") }}</span>
+            <strong>{{ serverInfo.platform || "-" }} / {{ serverInfo.arch || "-" }}</strong>
+          </div>
+          <div>
+            <span>{{ t("admin.nodeVersion") }}</span>
+            <strong>{{ serverInfo.nodeVersion || "-" }}</strong>
+          </div>
+          <div>
+            <span>{{ t("admin.uptime") }}</span>
+            <strong>{{ formatUptime(serverInfo.uptimeSeconds) }}</strong>
+          </div>
+        </div>
+      </section>
+
       <section class="panel-card panel-card--strong admin-card">
         <el-tabs v-model="activeTab">
           <el-tab-pane :label="t('admin.tabRequests')" name="requests">
@@ -647,6 +693,38 @@ type RequestStatus = "PENDING" | "APPROVED" | "REJECTED";
 type UserStatus = "ACTIVE" | "PENDING" | "APPROVED" | "SUSPENDED";
 type FeedbackStatus = "NEW" | "REVIEWING" | "RESOLVED";
 
+type ResourceUsage = {
+  total: number;
+  used: number;
+  free: number;
+  usagePercent: number;
+  path?: string;
+};
+
+type ServerInfo = {
+  sampledAt: string;
+  hostname: string;
+  platform: string;
+  arch: string;
+  nodeVersion: string;
+  uptimeSeconds: number;
+  cpu: {
+    model: string;
+    cores: number;
+    usagePercent: number;
+  };
+  memory: ResourceUsage;
+  disk: ResourceUsage | null;
+};
+
+type ServerMetric = {
+  key: string;
+  label: string;
+  percent: number;
+  detail: string;
+  color: string;
+};
+
 type ListQuery = {
   page: number;
   pageSize: number;
@@ -670,7 +748,7 @@ type ServiceOption = {
 const activeTab = ref("requests");
 const loading = ref(true);
 const errorMessage = ref("");
-const { t, localizeError } = usePortalI18n();
+const { t, localizeError, locale } = usePortalI18n();
 const pageSizes = [10, 20, 50, 100];
 const summary = reactive({
   users: 0,
@@ -678,6 +756,28 @@ const summary = reactive({
   services: 0,
   pendingRequests: 0,
   invites: 0
+});
+const serverLoading = ref(true);
+const serverError = ref("");
+const serverInfo = reactive<ServerInfo>({
+  sampledAt: "",
+  hostname: "",
+  platform: "",
+  arch: "",
+  nodeVersion: "",
+  uptimeSeconds: 0,
+  cpu: {
+    model: "",
+    cores: 0,
+    usagePercent: 0
+  },
+  memory: {
+    total: 0,
+    used: 0,
+    free: 0,
+    usagePercent: 0
+  },
+  disk: null
 });
 const users = ref<any[]>([]);
 const services = ref<any[]>([]);
@@ -815,6 +915,90 @@ function feedbackTypeText(type: string) {
   return t("feedback.typeSuggestion");
 }
 
+function formatBytes(bytes: number) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"];
+  let value = bytes;
+  let index = 0;
+
+  while (value >= 1024 && index < units.length - 1) {
+    value /= 1024;
+    index += 1;
+  }
+
+  return index === 0 ? `${Math.round(value)} ${units[index]}` : `${value.toFixed(1)} ${units[index]}`;
+}
+
+function formatUptime(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (locale.value === "en") {
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0 || parts.length > 0) parts.push(`${hours}h`);
+    parts.push(`${minutes}m`);
+    return parts.join(" ");
+  }
+
+  const parts: string[] = [];
+  if (days > 0) parts.push(`${days} 天`);
+  if (hours > 0 || parts.length > 0) parts.push(`${hours} 小时`);
+  parts.push(`${minutes} 分钟`);
+  return parts.join(" ");
+}
+
+function formatDateTime(value: string) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat(locale.value === "en" ? "en-US" : "zh-CN", {
+    dateStyle: "medium",
+    timeStyle: "medium",
+    hour12: false
+  }).format(new Date(value));
+}
+
+const serverMetrics = computed<ServerMetric[]>(() => {
+  const disk = serverInfo.disk;
+  return [
+    {
+      key: "cpu",
+      label: t("admin.cpuUsage"),
+      percent: serverInfo.cpu.usagePercent,
+      detail: t("admin.cpuDetail", {
+        cores: serverInfo.cpu.cores,
+        model: serverInfo.cpu.model || "-"
+      }),
+      color: "#2158f5"
+    },
+    {
+      key: "memory",
+      label: t("admin.memoryUsage"),
+      percent: serverInfo.memory.usagePercent,
+      detail: t("admin.memoryDetail", {
+        used: formatBytes(serverInfo.memory.used),
+        total: formatBytes(serverInfo.memory.total)
+      }),
+      color: "#0f766e"
+    },
+    {
+      key: "disk",
+      label: t("admin.diskUsage"),
+      percent: disk?.usagePercent || 0,
+      detail: disk
+        ? t("admin.diskDetail", {
+            used: formatBytes(disk.used),
+            total: formatBytes(disk.total),
+            path: disk.path || "-"
+          })
+        : t("admin.diskUnavailable"),
+      color: "#b45309"
+    }
+  ];
+});
+
 const inviteableServices = computed(() =>
   serviceOptions.value.filter((service) => service.enabled && service.allowInviteAccess)
 );
@@ -884,17 +1068,16 @@ async function loadAll() {
       openSourceResult,
       feedbackResult,
       serviceOptionResult
-    ] =
-      await Promise.all([
-        $fetch<typeof summary>("/api/admin/summary"),
-        $fetch<{ users: any[]; total: number }>("/api/admin/users", { query: listQueryParams(userQuery) }),
-        $fetch<{ services: any[]; total: number }>("/api/admin/services", { query: listQueryParams(serviceQuery) }),
-        $fetch<{ invites: any[]; total: number }>("/api/admin/invites", { query: listQueryParams(inviteQuery) }),
-        $fetch<{ requests: any[]; total: number }>("/api/admin/requests", { query: listQueryParams(requestQuery) }),
-        $fetch<{ credits: any[]; total: number }>("/api/admin/open-source-credits", { query: listQueryParams(openSourceQuery) }),
-        $fetch<{ feedback: any[]; total: number }>("/api/admin/feedback", { query: listQueryParams(feedbackQuery) }),
-        $fetch<{ services: ServiceOption[] }>("/api/admin/service-options")
-      ]);
+    ] = await Promise.all([
+      $fetch<typeof summary>("/api/admin/summary"),
+      $fetch<{ users: any[]; total: number }>("/api/admin/users", { query: listQueryParams(userQuery) }),
+      $fetch<{ services: any[]; total: number }>("/api/admin/services", { query: listQueryParams(serviceQuery) }),
+      $fetch<{ invites: any[]; total: number }>("/api/admin/invites", { query: listQueryParams(inviteQuery) }),
+      $fetch<{ requests: any[]; total: number }>("/api/admin/requests", { query: listQueryParams(requestQuery) }),
+      $fetch<{ credits: any[]; total: number }>("/api/admin/open-source-credits", { query: listQueryParams(openSourceQuery) }),
+      $fetch<{ feedback: any[]; total: number }>("/api/admin/feedback", { query: listQueryParams(feedbackQuery) }),
+      $fetch<{ services: ServiceOption[] }>("/api/admin/service-options")
+    ]);
 
     Object.assign(summary, summaryResult);
     users.value = userResult.users;
@@ -1130,7 +1313,24 @@ async function updateFeedback(id: string, status: FeedbackStatus) {
   await loadAll();
 }
 
-onMounted(loadAll);
+async function loadServerInfo() {
+  serverLoading.value = true;
+  serverError.value = "";
+
+  try {
+    const result = await $fetch<ServerInfo>("/api/admin/server-info");
+    Object.assign(serverInfo, result);
+  } catch (error: any) {
+    serverError.value = localizeError(error, "error.loadServerInfo");
+  } finally {
+    serverLoading.value = false;
+  }
+}
+
+onMounted(() => {
+  void loadAll();
+  void loadServerInfo();
+});
 </script>
 
 <style scoped>
@@ -1141,6 +1341,108 @@ onMounted(loadAll);
 .admin-card {
   margin-top: 16px;
   padding: 18px;
+}
+
+.server-card {
+  margin-top: 16px;
+  padding: 18px;
+}
+
+.server-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.server-card__title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.server-card__meta {
+  margin: 6px 0 0;
+  color: var(--page-muted);
+  font-size: 13px;
+}
+
+.server-card__error {
+  margin: 0 0 12px;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+html[data-theme="dark"] .server-card__error {
+  color: #fca5a5;
+}
+
+.server-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.server-metric {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--page-surface-soft);
+  border: 1px solid var(--page-border);
+}
+
+.server-metric__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.server-metric__header span {
+  font-size: 13px;
+  color: var(--page-muted);
+}
+
+.server-metric__header strong {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.server-metric__detail {
+  margin: 8px 0 0;
+  color: var(--page-muted);
+  font-size: 12px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+
+.server-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.server-facts div {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--page-surface-soft);
+  border: 1px solid var(--page-border);
+}
+
+.server-facts span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--page-muted);
+  font-size: 12px;
+}
+
+.server-facts strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .admin-error {
@@ -1169,6 +1471,12 @@ onMounted(loadAll);
 .compact-admin-btn {
   min-height: 44px;
   white-space: nowrap;
+}
+
+.compact-admin-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+  transform: none;
 }
 
 .admin-pagination {
@@ -1209,9 +1517,25 @@ onMounted(loadAll);
   white-space: pre-wrap;
 }
 
+@media (max-width: 960px) {
+  .server-metrics,
+  .server-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 720px) {
   .admin-toolbar {
     align-items: stretch;
+  }
+
+  .server-card__header {
+    flex-direction: column;
+  }
+
+  .server-metrics,
+  .server-facts {
+    grid-template-columns: 1fr;
   }
 
   .admin-search,
