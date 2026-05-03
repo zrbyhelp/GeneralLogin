@@ -33,6 +33,7 @@ export default defineEventHandler(async () => {
       id: true,
       name: true,
       slug: true,
+      clientId: true,
       homeUrl: true,
       healthCheckUrl: true,
       docsUrl: true
@@ -44,6 +45,7 @@ export default defineEventHandler(async () => {
       id: service.id,
       name: service.name,
       slug: service.slug,
+      clientId: service.clientId,
       host: safeHost(service.homeUrl),
       docsUrl: service.docsUrl,
       status: await checkServiceHealth(service.healthCheckUrl)

@@ -37,6 +37,10 @@ export default defineNuxtConfig({
           name: "description",
           content: "统一登录门户、邀请码审核和网站服务授权中心"
         }
+      ],
+      link: [
+        { rel: "icon", type: "image/png", href: "/logo.png" },
+        { rel: "apple-touch-icon", href: "/logo.png" }
       ]
     }
   },

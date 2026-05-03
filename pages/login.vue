@@ -1,7 +1,12 @@
 <template>
   <div class="login-page">
+    <div v-if="externalLogin" class="external-login-banner">
+      {{ t("login.externalLoginPrefix") }}{{ externalServiceName }}
+    </div>
+
     <section class="login-panel">
       <div class="login-copy">
+        <img class="brand-logo" src="/logo.png" :alt="appName" />
         <p class="eyebrow">{{ t("login.eyebrow") }}</p>
         <h1>{{ appName }}</h1>
         <div class="managed-tags" :aria-label="t('login.managedServicesLabel')">
@@ -23,9 +28,6 @@
           <button type="button" @click="openCredits">{{ t("login.openSourceCredits") }}</button>
           <button type="button" @click="openDocs">{{ t("login.docsList") }}</button>
           <NuxtLink to="/feedback">{{ t("login.feedback") }}</NuxtLink>
-        </div>
-        <div v-if="externalLogin" class="portal-note">
-          {{ t("login.externalLoginPrefix") }}{{ serviceLabel }}
         </div>
       </div>
 
@@ -130,10 +132,11 @@
     </section>
 
     <el-dialog v-model="creditsVisible" :title="t('login.openSourceCredits')" width="460px">
-      <div v-if="openSourceCredits.length" class="dialog-list">
+      <div v-if="openSourceCredits.length" class="credits-list">
         <a
           v-for="credit in openSourceCredits"
           :key="credit.id"
+          class="credit-link"
           :href="credit.url"
           target="_blank"
           rel="noreferrer"
@@ -142,6 +145,7 @@
         </a>
       </div>
       <p v-else class="muted">{{ t("login.noCredits") }}</p>
+      <p class="credits-footer">{{ t("login.openSourceThanks") }}</p>
     </el-dialog>
 
     <el-dialog v-model="docsVisible" :title="t('login.docsList')" width="520px">
@@ -192,6 +196,7 @@ type PublicService = {
   id: string;
   name: string;
   slug: string;
+  clientId: string;
   host: string;
   docsUrl?: string | null;
   status: "online" | "offline";
@@ -225,9 +230,11 @@ const clientId = computed(() => String(route.query.client_id || ""));
 const callbackUrl = computed(() => String(route.query.callback || ""));
 const state = computed(() => String(route.query.state || ""));
 const externalLogin = computed(() => Boolean(clientId.value && callbackUrl.value));
-const serviceLabel = computed(() => clientId.value || t("login.unknownService"));
 const managedServices = ref<PublicService[]>([]);
 const openSourceCredits = ref<OpenSourceCredit[]>([]);
+const externalServiceName = computed(() =>
+  managedServices.value.find((service) => service.clientId === clientId.value)?.name || t("login.unknownService")
+);
 const docsServices = computed(() =>
   managedServices.value.filter((service) => Boolean(service.docsUrl))
 );
@@ -396,11 +403,40 @@ onMounted(async () => {
   backdrop-filter: blur(18px);
 }
 
+.external-login-banner {
+  position: fixed;
+  top: 18px;
+  left: 50%;
+  z-index: 20;
+  max-width: min(620px, calc(100vw - 28px));
+  border: 1px solid rgba(33, 88, 245, 0.2);
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: var(--page-surface-strong);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+  color: var(--page-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  transform: translateX(-50%);
+  backdrop-filter: blur(18px);
+}
+
 .login-copy {
   min-height: 490px;
   padding: clamp(34px, 5vw, 58px);
   border-right: 1px solid var(--page-border);
   background: var(--page-surface);
+}
+
+.brand-logo {
+  display: block;
+  width: clamp(58px, 9vw, 88px);
+  height: clamp(58px, 9vw, 88px);
+  margin-bottom: 18px;
+  border-radius: 18px;
+  object-fit: contain;
 }
 
 .eyebrow {
@@ -498,6 +534,35 @@ h1 {
   color: var(--page-text);
 }
 
+.credits-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.credit-link {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: 36px;
+  border: 1px solid var(--page-border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: var(--page-surface);
+  color: var(--page-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.credits-footer {
+  margin: 14px 0 0;
+  color: var(--page-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .docs-note {
   margin: 12px 0 0;
 }
@@ -548,10 +613,7 @@ h1 {
 }
 
 .agreement-box {
-  border: 1px solid var(--page-border);
-  border-radius: 12px;
-  padding: 10px 12px;
-  background: var(--page-surface-soft);
+  padding: 2px 0;
 }
 
 .agreement-row {
@@ -754,7 +816,12 @@ h1 {
 @media (max-width: 900px) {
   .login-page {
     align-items: flex-start;
-    padding: 20px 10px 34px;
+    padding: 64px 10px 34px;
+  }
+
+  .external-login-banner {
+    top: 12px;
+    border-radius: 14px;
   }
 
   .login-panel {
