@@ -2,6 +2,8 @@
 
 门户提供“统一登录 + 一次性授权码”的接入方式。外部网站不读取门户 session，只在自己的服务端用 `clientId + clientSecret + code` 换取用户身份，然后建立自己的站点 session。
 
+当前线上门户地址为 `https://zrg.zrbyhelp.com/`，MinIO 地址为 `https://minio.zrbyhelp.com`。
+
 ## 1. 管理员创建网站服务
 
 进入 `/admin` 的“网站服务”创建服务：
@@ -22,7 +24,7 @@
 用户访问外部网站但没有本地 session 时，把浏览器跳转到门户：
 
 ```text
-https://login.example.com/login?client_id=svc_xxx&callback=https%3A%2F%2Fapp.example.com%2Fauth%2Fcallback&state=random_state
+https://zrg.zrbyhelp.com/login?client_id=svc_xxx&callback=https%3A%2F%2Fapp.example.com%2Fauth%2Fcallback&state=random_state
 ```
 
 参数：
@@ -46,7 +48,7 @@ https://app.example.com/auth/callback?code=one_time_code&state=random_state&them
 外部网站 callback 路由收到 `code` 后，必须在服务端请求门户：
 
 ```http
-POST https://login.example.com/api/service-auth/token
+POST https://zrg.zrbyhelp.com/api/service-auth/token
 Content-Type: application/json
 
 {
@@ -76,7 +78,7 @@ Content-Type: application/json
     "name": "Docs"
   },
   "state": "random_state",
-  "reloginUrl": "https://login.example.com/relogin?client_id=svc_xxx&callback=..."
+  "reloginUrl": "https://zrg.zrbyhelp.com/relogin?client_id=svc_xxx&callback=..."
 }
 ```
 
@@ -87,7 +89,7 @@ Content-Type: application/json
 第三方服务可以轮询用户是否仍启用：
 
 ```http
-POST https://login.example.com/api/service-auth/user-status
+POST https://zrg.zrbyhelp.com/api/service-auth/user-status
 Content-Type: application/json
 
 {
@@ -116,7 +118,7 @@ Content-Type: application/json
 第三方服务可以在自己的服务端调用门户接口，修改当前服务可访问用户的资料。该接口也支持修改密码，但已有密码用户必须提供当前密码。
 
 ```http
-PATCH https://login.example.com/api/service-auth/user-profile
+PATCH https://zrg.zrbyhelp.com/api/service-auth/user-profile
 Content-Type: application/json
 
 {
@@ -135,7 +137,7 @@ Content-Type: application/json
 如需直接上传头像，使用 multipart 表单。文件会写入 MinIO，并把返回 URL 保存到用户头像。
 
 ```http
-POST https://login.example.com/api/service-auth/user-avatar
+POST https://zrg.zrbyhelp.com/api/service-auth/user-avatar
 Content-Type: multipart/form-data
 
 clientId=svc_xxx
@@ -149,7 +151,7 @@ file=@avatar.png
 接入网站不要直接使用 MinIO 凭据。服务端用 `clientId + clientSecret` 调用统一上传接口，文件会存到 `services/{serviceId}/...` 路径下，单文件最大 10MB。
 
 ```http
-POST https://login.example.com/api/service-auth/files
+POST https://zrg.zrbyhelp.com/api/service-auth/files
 Content-Type: multipart/form-data
 
 clientId=svc_xxx
@@ -159,7 +161,7 @@ purpose=attachments
 file=@report.pdf
 ```
 
-`userId` 可选；传入时门户会校验该用户仍可访问当前服务。成功响应包含 `file.url`、`file.objectName`、`file.size` 和 `file.contentType`。`NUXT_MINIO_PUBLIC_BASE_URL` 应配置为外部可访问地址。
+`userId` 可选；传入时门户会校验该用户仍可访问当前服务。成功响应包含 `file.url`、`file.objectName`、`file.size` 和 `file.contentType`。`NUXT_MINIO_PUBLIC_BASE_URL` 应配置为外部可访问地址，线上可配置为 `https://minio.zrbyhelp.com/zr-access-portal`。
 
 ## 7. 邀请码与申请
 
@@ -172,7 +174,7 @@ file=@report.pdf
 当外部服务希望用户重新登录，或本地 session 过期时，跳转到：
 
 ```text
-https://login.example.com/relogin?client_id=svc_xxx&callback=https%3A%2F%2Fapp.example.com%2Fauth%2Fcallback&state=new_random_state
+https://zrg.zrbyhelp.com/relogin?client_id=svc_xxx&callback=https%3A%2F%2Fapp.example.com%2Fauth%2Fcallback&state=new_random_state
 ```
 
 门户会先退出当前本地 session，再回到 `/login` 继续标准授权流程。
@@ -183,7 +185,7 @@ https://login.example.com/relogin?client_id=svc_xxx&callback=https%3A%2F%2Fapp.e
 
 ```ts
 window.open(
-  "https://login.example.com/feedback?service_slug=docs&embed=1&source_url=" +
+  "https://zrg.zrbyhelp.com/feedback?service_slug=docs&embed=1&source_url=" +
     encodeURIComponent(window.location.href),
   "zr-feedback",
   "width=680,height=720"
@@ -197,7 +199,7 @@ window.open(
 在 Linux.do Connect 创建应用，并把回调地址配置为：
 
 ```text
-https://login.example.com/api/auth/linuxdo/callback
+https://zrg.zrbyhelp.com/api/auth/linuxdo/callback
 ```
 
 环境变量：
@@ -205,7 +207,7 @@ https://login.example.com/api/auth/linuxdo/callback
 ```env
 NUXT_LINUXDO_CLIENT_ID="..."
 NUXT_LINUXDO_CLIENT_SECRET="..."
-NUXT_LINUXDO_REDIRECT_URI="https://login.example.com/api/auth/linuxdo/callback"
+NUXT_LINUXDO_REDIRECT_URI="https://zrg.zrbyhelp.com/api/auth/linuxdo/callback"
 NUXT_LINUXDO_SCOPE=""
 NUXT_LINUXDO_AUTHORIZE_URL="https://connect.linux.do/oauth2/authorize"
 NUXT_LINUXDO_TOKEN_URL="https://connect.linux.do/oauth2/token"
@@ -218,6 +220,7 @@ NUXT_LINUXDO_USER_URL="https://connect.linux.do/api/user"
 
 - `clientSecret` 只存服务端，泄漏后需要在 `/admin` 轮换密钥。
 - MinIO 的 `accessKey/secretKey` 只配置在门户服务端，不提供给第三方网站前端或后端。
+- 线上 MinIO endpoint 使用 `minio.zrbyhelp.com`，公开文件 URL 通过 `NUXT_MINIO_PUBLIC_BASE_URL` 生成。
 - 授权码只保存 hash，明文 code 只通过浏览器回跳一次。
 - 外部服务必须校验 `state`。
 - 回调地址必须由管理员预先配置。

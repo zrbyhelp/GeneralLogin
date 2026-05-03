@@ -4,6 +4,11 @@ Nuxt 统一登录门户，内置账号密码注册登录和 Linux.do 第三方�
 
 ## 快速启动
 
+当前线上地址：
+
+- 门户：`https://zrg.zrbyhelp.com/`
+- MinIO：`https://minio.zrbyhelp.com`
+
 1. 安装依赖：
 
 ```bash
@@ -21,16 +26,16 @@ cp .env.example .env
 - `DATABASE_URL`: MySQL 连接串
 - `NUXT_ADMIN_ACCOUNTS`: 管理员账号，多个用英文逗号分隔
 - `NUXT_ADMIN_EMAILS`: 旧邮箱管理员兼容配置，可选
-- `NUXT_PUBLIC_APP_URL`: 门户公网地址
+- `NUXT_PUBLIC_APP_URL`: 门户公网地址，线上为 `https://zrg.zrbyhelp.com`
 - `NUXT_LINUXDO_CLIENT_ID`: Linux.do Connect 应用 Client ID
 - `NUXT_LINUXDO_CLIENT_SECRET`: Linux.do Connect 应用 Client Secret
-- `NUXT_LINUXDO_REDIRECT_URI`: Linux.do 回调地址，通常为 `https://login.example.com/api/auth/linuxdo/callback`
+- `NUXT_LINUXDO_REDIRECT_URI`: Linux.do 回调地址，线上为 `https://zrg.zrbyhelp.com/api/auth/linuxdo/callback`
 - `NUXT_LINUXDO_SCOPE`: 可选，Linux.do Connect 应用需要 scope 时再填写
 - `NUXT_LINUXDO_AUTHORIZE_URL` / `NUXT_LINUXDO_TOKEN_URL` / `NUXT_LINUXDO_USER_URL`: 可选，覆盖 Linux.do OAuth 端点
-- `NUXT_MINIO_ENDPOINT` / `NUXT_MINIO_PORT`: MinIO 地址和端口
+- `NUXT_MINIO_ENDPOINT` / `NUXT_MINIO_PORT`: MinIO 地址和端口，线上 endpoint 为 `minio.zrbyhelp.com`
 - `NUXT_MINIO_ACCESS_KEY` / `NUXT_MINIO_SECRET_KEY`: MinIO 访问凭据
 - `NUXT_MINIO_BUCKET`: 用户头像和第三方上传文件使用的 bucket
-- `NUXT_MINIO_PUBLIC_BASE_URL`: 外部可访问的 bucket 地址，用于生成头像和文件 URL
+- `NUXT_MINIO_PUBLIC_BASE_URL`: 外部可访问的 bucket 地址，用于生成头像和文件 URL，线上可配置为 `https://minio.zrbyhelp.com/zr-access-portal`
 
 3. 启动本地 MySQL 和 MinIO：
 
@@ -67,6 +72,11 @@ Compose 会启动 `app`、`mysql`、`minio` 和 `minio-init`。应用容器启�
 - 门户：`http://localhost:3000`
 - MinIO API：`http://localhost:9000`
 - MinIO Console：`http://localhost:9001`
+
+线上部署入口：
+
+- 门户：`https://zrg.zrbyhelp.com/`
+- MinIO：`https://minio.zrbyhelp.com`
 
 如果本机端口冲突，可修改 `.env` 中的 `APP_PORT`、`MYSQL_PORT`、`MINIO_API_PORT`、`MINIO_CONSOLE_PORT`。
 

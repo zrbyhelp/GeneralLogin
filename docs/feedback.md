@@ -6,7 +6,7 @@
 
 ```ts
 window.open(
-  "https://login.example.com/feedback?service_slug=docs&embed=1&source_url=" +
+  "https://zrg.zrbyhelp.com/feedback?service_slug=docs&embed=1&source_url=" +
     encodeURIComponent(window.location.href),
   "zr-feedback",
   "width=680,height=720"

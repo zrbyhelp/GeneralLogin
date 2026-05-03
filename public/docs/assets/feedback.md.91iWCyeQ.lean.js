@@ -1,0 +1,1 @@
+import{_ as s,o as e,c as i,ae as t}from"./chunks/framework.BZib5Ft4.js";const k=JSON.parse('{"title":"投诉建议弹窗","description":"","frontmatter":{},"headers":[],"relativePath":"feedback.md","filePath":"feedback.md"}'),n={name:"feedback.md"};function l(o,a,p,d,h,r){return e(),i("div",null,[...a[0]||(a[0]=[t("",8)])])}const u=s(n,[["render",l]]);export{k as __pageData,u as default};

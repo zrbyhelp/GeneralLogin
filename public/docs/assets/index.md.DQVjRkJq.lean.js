@@ -1,0 +1,1 @@
+import{_ as a,o,c as i,ae as c}from"./chunks/framework.BZib5Ft4.js";const u=JSON.parse('{"title":"ZR-AI服务接入文档","description":"","frontmatter":{},"headers":[],"relativePath":"index.md","filePath":"index.md"}'),l={name:"index.md"};function t(d,e,r,n,s,h){return o(),i("div",null,[...e[0]||(e[0]=[c("",8)])])}const p=a(l,[["render",t]]);export{u as __pageData,p as default};
