@@ -5,6 +5,22 @@ import { sha256 } from "~/server/utils/crypto";
 import { prisma } from "~/server/utils/prisma";
 import { writeAuditLog } from "~/server/utils/audit";
 
+async function findService(params: { clientId?: string; serviceId?: string }) {
+  if (!params.clientId && !params.serviceId) {
+    return null;
+  }
+
+  return prisma.serviceApp.findFirst({
+    where: {
+      enabled: true,
+      OR: [
+        params.clientId ? { clientId: params.clientId } : undefined,
+        params.serviceId ? { id: params.serviceId } : undefined
+      ].filter(Boolean) as never
+    }
+  });
+}
+
 export default defineEventHandler(async (event) => {
   const { profile } = await requirePortalUser(event);
   const body = await readBody<{
@@ -14,24 +30,18 @@ export default defineEventHandler(async (event) => {
     serviceId?: string;
   }>(event);
 
-  const service = body.clientId || body.serviceId
-    ? await prisma.serviceApp.findFirst({
-        where: {
-          OR: [
-            body.clientId ? { clientId: body.clientId } : undefined,
-            body.serviceId ? { id: body.serviceId } : undefined
-          ].filter(Boolean) as never
-        }
-      })
-    : null;
-
   if (profile.status === UserStatus.SUSPENDED) {
     throw createError({ statusCode: 403, statusMessage: "账号已停用" });
   }
 
   if (body.inviteCode?.trim()) {
     const invite = await prisma.inviteCode.findUnique({
-      where: { codeHash: sha256(body.inviteCode.trim()) }
+      where: { codeHash: sha256(body.inviteCode.trim()) },
+      include: {
+        services: {
+          include: { service: true }
+        }
+      }
     });
 
     if (!invite || !invite.enabled) {
@@ -46,65 +56,57 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: "邀请码已使用完" });
     }
 
+    const services = invite.services
+      .map((item) => item.service)
+      .filter((service) => service.enabled && service.allowInviteAccess);
+
+    if (!services.length) {
+      throw createError({ statusCode: 400, statusMessage: "邀请码未绑定可用网站" });
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.inviteCode.update({
         where: { id: invite.id },
         data: { usedCount: { increment: 1 } }
       });
 
-      await tx.userProfile.update({
-        where: { id: profile.id },
-        data: {
-          status: UserStatus.APPROVED,
-          approvedAt: new Date()
-        }
+      await tx.userServiceAccess.createMany({
+        data: services.map((service) => ({
+          userId: profile.id,
+          serviceId: service.id,
+          allowed: true
+        })),
+        skipDuplicates: true
       });
-
-      if (invite.grantsAllServices) {
-        const services = await tx.serviceApp.findMany({
-          where: { enabled: true },
-          select: { id: true }
-        });
-
-        await tx.userServiceAccess.createMany({
-          data: services.map((item) => ({
-            userId: profile.id,
-            serviceId: item.id,
-            allowed: true
-          })),
-          skipDuplicates: true
-        });
-      }
-
-      if (service && !invite.grantsAllServices) {
-        const existing = await tx.accessRequest.findFirst({
-          where: {
-            requesterId: profile.id,
-            serviceId: service.id,
-            status: AccessRequestStatus.PENDING
-          }
-        });
-
-        if (!existing) {
-          await tx.accessRequest.create({
-            data: {
-              requesterId: profile.id,
-              serviceId: service.id,
-              message: "用户使用邀请码加入后申请访问此服务。"
-            }
-          });
-        }
-      }
     });
 
     await writeAuditLog({
       actorId: profile.id,
       action: "user.invite.accepted",
       targetType: "InviteCode",
-      targetId: invite.id
+      targetId: invite.id,
+      metadata: {
+        serviceIds: services.map((service) => service.id)
+      }
     });
 
-    return { status: "approved", grantsAllServices: invite.grantsAllServices };
+    return {
+      status: "approved",
+      serviceIds: services.map((service) => service.id)
+    };
+  }
+
+  const service = await findService({
+    clientId: body.clientId,
+    serviceId: body.serviceId
+  });
+
+  if (!service) {
+    throw createError({ statusCode: 400, statusMessage: "请选择要申请的网站" });
+  }
+
+  if (!service.allowAccessRequest) {
+    throw createError({ statusCode: 403, statusMessage: "此服务未开放申请" });
   }
 
   const message = body.message?.trim();
@@ -115,7 +117,7 @@ export default defineEventHandler(async (event) => {
   const existing = await prisma.accessRequest.findFirst({
     where: {
       requesterId: profile.id,
-      serviceId: service?.id ?? null,
+      serviceId: service.id,
       status: AccessRequestStatus.PENDING
     },
     orderBy: { createdAt: "desc" }
@@ -126,7 +128,7 @@ export default defineEventHandler(async (event) => {
     (await prisma.accessRequest.create({
       data: {
         requesterId: profile.id,
-        serviceId: service?.id ?? null,
+        serviceId: service.id,
         message
       }
     }));
@@ -136,7 +138,7 @@ export default defineEventHandler(async (event) => {
     action: "access_request.created",
     targetType: "AccessRequest",
     targetId: request.id,
-    metadata: { serviceId: service?.id ?? null }
+    metadata: { serviceId: service.id }
   });
 
   return { status: "pending", requestId: request.id };

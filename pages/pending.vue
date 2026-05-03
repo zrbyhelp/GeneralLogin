@@ -1,18 +1,22 @@
 <template>
   <div class="page-panel">
     <section class="panel-card panel-card--strong pending-card">
-      <span class="badge badge--warn">待审核</span>
-      <h1>申请已提交</h1>
+      <span class="badge badge--warn">{{ t("pending.badge") }}</span>
+      <h1>{{ t("pending.title") }}</h1>
       <p class="muted">
-        管理员审核通过后，你会在服务列表中看到可访问的网站服务。
+        {{ t("pending.text") }}
       </p>
       <div class="action-row">
-        <NuxtLink class="ghost-btn" to="/apps">刷新服务列表</NuxtLink>
-        <NuxtLink class="ghost-btn" to="/login">返回登录</NuxtLink>
+        <NuxtLink class="ghost-btn" to="/apps">{{ t("pending.refresh") }}</NuxtLink>
+        <NuxtLink class="ghost-btn" to="/login">{{ t("pending.backLogin") }}</NuxtLink>
       </div>
     </section>
   </div>
 </template>
+
+<script setup lang="ts">
+const { t } = usePortalI18n();
+</script>
 
 <style scoped>
 .pending-card {

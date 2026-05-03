@@ -4,6 +4,7 @@ export default defineNuxtConfig({
   modules: ["@element-plus/nuxt"],
   css: ["~/assets/css/main.css"],
   runtimeConfig: {
+    adminAccounts: "",
     adminEmails: "",
     linuxdoClientId: "",
     linuxdoClientSecret: "",
@@ -12,6 +13,14 @@ export default defineNuxtConfig({
     linuxdoTokenUrl: "https://connect.linux.do/oauth2/token",
     linuxdoUserUrl: "https://connect.linux.do/api/user",
     linuxdoScope: "",
+    minioEndpoint: "localhost",
+    minioPort: "9000",
+    minioUseSSL: "false",
+    minioAccessKey: "",
+    minioSecretKey: "",
+    minioBucket: "zr-access-portal",
+    minioRegion: "us-east-1",
+    minioPublicBaseUrl: "http://localhost:9000/zr-access-portal",
     public: {
       appName: "ZR-AI服务",
       appUrl: "http://localhost:3000",

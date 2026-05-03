@@ -1,8 +1,8 @@
 <template>
   <div class="page-panel">
     <section class="panel-card panel-card--strong relogin-card">
-      <h1>重新登录</h1>
-      <p class="muted">正在清理当前会话并重新进入登录流程。</p>
+      <h1>{{ t("relogin.title") }}</h1>
+      <p class="muted">{{ t("relogin.text") }}</p>
     </section>
   </div>
 </template>
@@ -11,6 +11,7 @@
 import { onMounted } from "vue";
 
 const route = useRoute();
+const { t, theme, locale } = usePortalI18n();
 
 function buildLoginUrl() {
   const params = new URLSearchParams();
@@ -20,6 +21,8 @@ function buildLoginUrl() {
       params.set(key, String(value));
     }
   }
+  params.set("theme", theme.value);
+  params.set("locale", locale.value);
 
   const query = params.toString();
   return query ? `/login?${query}` : "/login";

@@ -14,16 +14,16 @@
 
 html[data-theme="dark"] {
   color-scheme: dark;
-  --page-bg: #0b1020;
-  --page-surface: rgba(15, 23, 42, 0.68);
-  --page-surface-strong: rgba(15, 23, 42, 0.88);
-  --page-surface-soft: rgba(15, 23, 42, 0.58);
-  --page-surface-muted: rgba(148, 163, 184, 0.12);
-  --page-border: rgba(148, 163, 184, 0.2);
-  --page-text: #e5eefc;
-  --page-muted: rgba(226, 232, 240, 0.68);
-  --page-accent: #8fb5ff;
-  --page-accent-2: #6fe1d8;
+  --page-bg: #0a0f1d;
+  --page-surface: rgba(20, 28, 45, 0.82);
+  --page-surface-strong: rgba(25, 35, 55, 0.96);
+  --page-surface-soft: rgba(30, 41, 59, 0.78);
+  --page-surface-muted: rgba(148, 163, 184, 0.18);
+  --page-border: rgba(203, 213, 225, 0.24);
+  --page-text: #f4f7fb;
+  --page-muted: rgba(226, 232, 240, 0.78);
+  --page-accent: #8bb8ff;
+  --page-accent-2: #65dccf;
 }
 
 * {
@@ -291,6 +291,61 @@ select {
 .badge--danger {
   background: rgba(248, 113, 113, 0.14);
   color: #b91c1c;
+}
+
+html[data-theme="dark"] .badge {
+  color: #bfdbfe;
+}
+
+html[data-theme="dark"] .badge--ok {
+  color: #8df5c9;
+}
+
+html[data-theme="dark"] .badge--warn {
+  color: #facc6b;
+}
+
+html[data-theme="dark"] .badge--danger {
+  color: #fca5a5;
+}
+
+html[data-theme="dark"] .el-table,
+html[data-theme="dark"] .el-table__expanded-cell {
+  --el-table-bg-color: rgba(25, 35, 55, 0.98);
+  --el-table-tr-bg-color: rgba(25, 35, 55, 0.98);
+  --el-table-header-bg-color: rgba(35, 48, 73, 0.98);
+  --el-table-header-text-color: #f8fafc;
+  --el-table-text-color: #eef4ff;
+  --el-table-row-hover-bg-color: rgba(71, 85, 105, 0.46);
+  --el-table-border-color: rgba(203, 213, 225, 0.22);
+}
+
+html[data-theme="dark"] .el-tabs,
+html[data-theme="dark"] .el-dialog,
+html[data-theme="dark"] .el-dropdown__popper,
+html[data-theme="dark"] .el-select__popper {
+  --el-bg-color: rgba(25, 35, 55, 0.98);
+  --el-bg-color-overlay: rgba(25, 35, 55, 0.98);
+  --el-text-color-primary: #f8fafc;
+  --el-text-color-regular: #e2e8f0;
+  --el-text-color-secondary: #cbd5e1;
+  --el-border-color: rgba(203, 213, 225, 0.24);
+  --el-border-color-light: rgba(203, 213, 225, 0.18);
+  --el-fill-color-light: rgba(71, 85, 105, 0.36);
+  --el-fill-color-blank: rgba(15, 23, 42, 0.92);
+}
+
+html[data-theme="dark"] .el-input__wrapper,
+html[data-theme="dark"] .el-select__wrapper,
+html[data-theme="dark"] .el-textarea__inner {
+  background: rgba(15, 23, 42, 0.86);
+  box-shadow: 0 0 0 1px rgba(203, 213, 225, 0.28) inset;
+}
+
+html[data-theme="dark"] .el-tag.el-tag--info {
+  --el-tag-bg-color: rgba(148, 163, 184, 0.18);
+  --el-tag-border-color: rgba(203, 213, 225, 0.24);
+  --el-tag-text-color: #e2e8f0;
 }
 
 .page-aside {

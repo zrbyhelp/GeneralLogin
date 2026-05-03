@@ -1,8 +1,13 @@
-import { AccessRequestStatus, UserStatus } from "@prisma/client";
+import { AccessRequestStatus } from "@prisma/client";
 import { createError } from "h3";
 import { requireAdminUser } from "~/server/utils/auth";
 import { prisma } from "~/server/utils/prisma";
 import { writeAuditLog } from "~/server/utils/audit";
+
+const REVIEWABLE_STATUSES: AccessRequestStatus[] = [
+  AccessRequestStatus.APPROVED,
+  AccessRequestStatus.REJECTED
+];
 
 export default defineEventHandler(async (event) => {
   const admin = await requireAdminUser(event);
@@ -17,9 +22,7 @@ export default defineEventHandler(async (event) => {
 
   if (
     !body.status ||
-    ![AccessRequestStatus.APPROVED, AccessRequestStatus.REJECTED].includes(
-      body.status
-    )
+    !REVIEWABLE_STATUSES.includes(body.status)
   ) {
     throw createError({ statusCode: 400, statusMessage: "申请状态无效" });
   }
@@ -44,31 +47,27 @@ export default defineEventHandler(async (event) => {
     });
 
     if (body.status === AccessRequestStatus.APPROVED) {
-      await tx.userProfile.update({
-        where: { id: request.requesterId },
-        data: {
-          status: UserStatus.APPROVED,
-          approvedAt: new Date(),
-          approvedById: admin.profile.id
-        }
-      });
-
-      if (request.serviceId) {
-        await tx.userServiceAccess.upsert({
-          where: {
-            userId_serviceId: {
-              userId: request.requesterId,
-              serviceId: request.serviceId
-            }
-          },
-          update: { allowed: true },
-          create: {
-            userId: request.requesterId,
-            serviceId: request.serviceId,
-            allowed: true
-          }
+      if (!request.serviceId) {
+        throw createError({
+          statusCode: 400,
+          statusMessage: "旧的全局申请无法通过，请让用户重新选择网站提交申请"
         });
       }
+
+      await tx.userServiceAccess.upsert({
+        where: {
+          userId_serviceId: {
+            userId: request.requesterId,
+            serviceId: request.serviceId
+          }
+        },
+        update: { allowed: true },
+        create: {
+          userId: request.requesterId,
+          serviceId: request.serviceId,
+          allowed: true
+        }
+      });
     }
 
     return result;

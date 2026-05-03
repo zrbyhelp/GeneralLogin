@@ -1,15 +1,115 @@
+name: zr-access-portal
+
 services:
-  mysql:
-    image: mysql:8.4
-    container_name: zr-access-mysql
-    command: --mysql-native-password=ON
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22-bookworm-slim}
+        PNPM_VERSION: ${PNPM_VERSION:-10.32.1}
+    image: zr-access-portal:latest
+    container_name: zr-access-portal
+    restart: unless-stopped
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: zr_access_portal
+      DATABASE_URL: mysql://root:${MYSQL_ROOT_PASSWORD:-password}@mysql:3306/${MYSQL_DATABASE:-zr_access_portal}
+      DB_PUSH_ON_START: ${DB_PUSH_ON_START:-true}
+      DB_BACKFILL_ACCOUNTS_ON_START: ${DB_BACKFILL_ACCOUNTS_ON_START:-true}
+      NUXT_ADMIN_ACCOUNTS: ${NUXT_ADMIN_ACCOUNTS:-admin}
+      NUXT_ADMIN_EMAILS: ${NUXT_ADMIN_EMAILS:-}
+      NUXT_PUBLIC_APP_NAME: ${NUXT_PUBLIC_APP_NAME:-ZR-AI服务}
+      NUXT_PUBLIC_APP_URL: ${NUXT_PUBLIC_APP_URL:-http://localhost:3000}
+      NUXT_PUBLIC_DEFAULT_CALLBACK_URL: ${NUXT_PUBLIC_DEFAULT_CALLBACK_URL:-}
+      NUXT_LINUXDO_CLIENT_ID: ${NUXT_LINUXDO_CLIENT_ID:-}
+      NUXT_LINUXDO_CLIENT_SECRET: ${NUXT_LINUXDO_CLIENT_SECRET:-}
+      NUXT_LINUXDO_REDIRECT_URI: ${NUXT_LINUXDO_REDIRECT_URI:-http://localhost:3000/api/auth/linuxdo/callback}
+      NUXT_LINUXDO_SCOPE: ${NUXT_LINUXDO_SCOPE:-}
+      NUXT_LINUXDO_AUTHORIZE_URL: ${NUXT_LINUXDO_AUTHORIZE_URL:-https://connect.linux.do/oauth2/authorize}
+      NUXT_LINUXDO_TOKEN_URL: ${NUXT_LINUXDO_TOKEN_URL:-https://connect.linux.do/oauth2/token}
+      NUXT_LINUXDO_USER_URL: ${NUXT_LINUXDO_USER_URL:-https://connect.linux.do/api/user}
+      NUXT_MINIO_ENDPOINT: minio
+      NUXT_MINIO_PORT: "9000"
+      NUXT_MINIO_USE_SSL: "false"
+      NUXT_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-minioadmin}
+      NUXT_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      NUXT_MINIO_BUCKET: ${NUXT_MINIO_BUCKET:-zr-access-portal}
+      NUXT_MINIO_REGION: ${NUXT_MINIO_REGION:-us-east-1}
+      NUXT_MINIO_PUBLIC_BASE_URL: ${NUXT_MINIO_PUBLIC_BASE_URL:-http://localhost:9000/zr-access-portal}
     ports:
-      - "33306:3306"
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3000/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  mysql:
+    image: ${MYSQL_IMAGE:-mysql:8.4}
+    container_name: zr-access-mysql
+    restart: unless-stopped
+    command: --mysql-native-password=ON --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-password}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-zr_access_portal}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - zr-access-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  minio:
+    image: ${MINIO_IMAGE:-minio/minio:latest}
+    container_name: zr-access-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - zr-access-minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  minio-init:
+    image: ${MINIO_MC_IMAGE:-minio/mc:latest}
+    container_name: zr-access-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      NUXT_MINIO_BUCKET: ${NUXT_MINIO_BUCKET:-zr-access-portal}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        mc mb -p "local/$$NUXT_MINIO_BUCKET" || true
+        mc anonymous set download "local/$$NUXT_MINIO_BUCKET" || true
 
 volumes:
   zr-access-mysql:
+  zr-access-minio:

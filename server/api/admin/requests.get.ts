@@ -10,6 +10,7 @@ export default defineEventHandler(async (event) => {
       requester: {
         select: {
           id: true,
+          account: true,
           email: true,
           username: true,
           name: true,
@@ -25,6 +26,7 @@ export default defineEventHandler(async (event) => {
       },
       reviewedBy: {
         select: {
+          account: true,
           email: true,
           name: true
         }

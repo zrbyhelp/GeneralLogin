@@ -1,6 +1,6 @@
 import { UserStatus, type UserProfile } from "@prisma/client";
 import { createError } from "h3";
-import { getAdminEmails, getLinuxdoConfig } from "~/server/utils/config";
+import { getAdminAccounts, getAdminEmails, getLinuxdoConfig } from "~/server/utils/config";
 import { normalizeEmail } from "~/server/utils/crypto";
 import { hashPassword, validatePassword, verifyPassword } from "~/server/utils/password";
 import { prisma } from "~/server/utils/prisma";
@@ -8,11 +8,12 @@ import { prisma } from "~/server/utils/prisma";
 export function publicUser(profile: UserProfile) {
   return {
     id: profile.id,
+    account: profile.account,
     email: profile.email,
     username: profile.username,
     name: profile.name,
     avatarUrl: profile.avatarUrl,
-    status: profile.status,
+    status: profile.status === UserStatus.SUSPENDED ? "SUSPENDED" : "ACTIVE",
     isAdmin: profile.isAdminSnapshot
   };
 }
@@ -21,40 +22,46 @@ export function isAdminEmail(email?: string | null) {
   return !!email && getAdminEmails().includes(normalizeEmail(email));
 }
 
-export async function syncAdminSnapshot(profile: UserProfile) {
-  const nextIsAdmin = isAdminEmail(profile.email);
+export function normalizeAccount(account: string) {
+  return account.trim().toLowerCase();
+}
 
-  if (
-    profile.isAdminSnapshot === nextIsAdmin &&
-    (!nextIsAdmin || profile.status === UserStatus.APPROVED)
-  ) {
+export function validateAccount(account: string) {
+  if (!/^[a-z0-9_.-]{3,32}$/.test(account)) {
+    return "账号只能包含 3-32 位字母、数字、下划线、点和短横线";
+  }
+
+  return "";
+}
+
+export function isAdminAccount(account?: string | null) {
+  return !!account && getAdminAccounts().includes(normalizeAccount(account));
+}
+
+export async function syncAdminSnapshot(profile: UserProfile) {
+  const nextIsAdmin = isAdminAccount(profile.account) || isAdminEmail(profile.email);
+
+  if (profile.isAdminSnapshot === nextIsAdmin) {
     return profile;
   }
 
   return prisma.userProfile.update({
     where: { id: profile.id },
     data: {
-      isAdminSnapshot: nextIsAdmin,
-      status:
-        profile.status === UserStatus.SUSPENDED
-          ? profile.status
-          : nextIsAdmin
-            ? UserStatus.APPROVED
-            : profile.status,
-      approvedAt: nextIsAdmin && !profile.approvedAt ? new Date() : profile.approvedAt
+      isAdminSnapshot: nextIsAdmin
     }
   });
 }
 
-export async function registerEmailUser(params: {
-  email: string;
+export async function registerAccountUser(params: {
+  account: string;
   password: string;
   name?: string;
-  username?: string;
 }) {
-  const email = normalizeEmail(params.email);
-  if (!email.includes("@")) {
-    throw createError({ statusCode: 400, message: "邮箱格式无效" });
+  const account = normalizeAccount(params.account);
+  const accountError = validateAccount(account);
+  if (accountError) {
+    throw createError({ statusCode: 400, message: accountError });
   }
 
   const passwordError = validatePassword(params.password);
@@ -62,61 +69,36 @@ export async function registerEmailUser(params: {
     throw createError({ statusCode: 400, message: passwordError });
   }
 
-  const exists = await prisma.userProfile.findUnique({ where: { email } });
-  if (exists && exists.passwordHash) {
-    throw createError({ statusCode: 409, message: "该邮箱已注册" });
-  }
-  if (exists?.status === UserStatus.SUSPENDED) {
-    throw createError({ statusCode: 403, message: "账号已停用" });
+  const exists = await prisma.userProfile.findUnique({ where: { account } });
+  if (exists) {
+    throw createError({ statusCode: 409, message: "该账号已注册" });
   }
 
   const passwordHash = await hashPassword(params.password);
-  const isAdmin = isAdminEmail(email);
-
-  if (exists) {
-    return prisma.userProfile.update({
-      where: { id: exists.id },
-      data: {
-        name: params.name?.trim() || exists.name,
-        username: params.username?.trim() || exists.username,
-        passwordHash,
-        status:
-          exists.status === UserStatus.SUSPENDED
-            ? exists.status
-            : isAdmin
-              ? UserStatus.APPROVED
-              : exists.status,
-        isAdminSnapshot: isAdmin,
-        approvedAt: isAdmin ? new Date() : exists.approvedAt,
-        lastLoginAt: new Date()
-      }
-    });
-  }
+  const isAdmin = isAdminAccount(account);
 
   return prisma.userProfile.create({
     data: {
-      email,
+      account,
       name: params.name?.trim() || null,
-      username: params.username?.trim() || null,
       passwordHash,
-      status: isAdmin ? UserStatus.APPROVED : UserStatus.PENDING,
+      status: UserStatus.ACTIVE,
       isAdminSnapshot: isAdmin,
-      approvedAt: isAdmin ? new Date() : null,
       lastLoginAt: new Date()
     }
   });
 }
 
-export async function loginEmailUser(params: { email: string; password: string }) {
-  const email = normalizeEmail(params.email);
-  const user = await prisma.userProfile.findUnique({ where: { email } });
+export async function loginAccountUser(params: { account: string; password: string }) {
+  const account = normalizeAccount(params.account);
+  const user = await prisma.userProfile.findUnique({ where: { account } });
 
   if (!user || !user.passwordHash) {
-    throw createError({ statusCode: 401, message: "邮箱或密码错误" });
+    throw createError({ statusCode: 401, message: "账号或密码错误" });
   }
 
   if (!(await verifyPassword(params.password, user.passwordHash))) {
-    throw createError({ statusCode: 401, message: "邮箱或密码错误" });
+    throw createError({ statusCode: 401, message: "账号或密码错误" });
   }
 
   const profile = await syncAdminSnapshot(user);
@@ -175,7 +157,7 @@ export async function findOrCreateLinuxdoUser(params: {
       username: params.username?.trim() || null,
       name: params.name?.trim() || params.username?.trim() || null,
       avatarUrl: params.avatarUrl || null,
-      status: UserStatus.PENDING,
+      status: UserStatus.ACTIVE,
       isAdminSnapshot: false,
       lastLoginAt: new Date()
     }
@@ -305,6 +287,8 @@ export function buildExternalLoginState(value: {
   clientId?: string;
   callbackUrl?: string;
   state?: string;
+  theme?: string;
+  locale?: string;
 }) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
@@ -317,6 +301,8 @@ export function parseExternalLoginState(value: string) {
       clientId?: string;
       callbackUrl?: string;
       state?: string;
+      theme?: string;
+      locale?: string;
     };
     return parsed;
   } catch {

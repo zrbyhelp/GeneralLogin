@@ -60,6 +60,9 @@ onMounted(async () => {
     return;
   }
 
+  const canvasEl = canvas;
+  const ctx2d = ctx;
+
   themeIndex.value = Math.floor(Math.random() * themeCount);
 
   const TAU = Math.PI * 2;
@@ -367,14 +370,14 @@ onMounted(async () => {
     height = window.innerHeight;
     dpr = Math.min(window.devicePixelRatio || 1, width * height > 2500000 ? 1.2 : 1.35);
 
-    canvas.width = Math.ceil(width * dpr);
-    canvas.height = Math.ceil(height * dpr);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    canvasEl.width = Math.ceil(width * dpr);
+    canvasEl.height = Math.ceil(height * dpr);
+    canvasEl.style.width = `${width}px`;
+    canvasEl.style.height = `${height}px`;
+    ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    staticCanvas.width = canvas.width;
-    staticCanvas.height = canvas.height;
+    staticCanvas.width = canvasEl.width;
+    staticCanvas.height = canvasEl.height;
     staticCtx?.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     cellSize = Math.max(BASE_CELL, Math.ceil(Math.max(width / MAX_COLS, height / MAX_ROWS)));
@@ -694,24 +697,24 @@ onMounted(async () => {
     }
 
     const radius = POINTER_RADIUS * 0.72;
-    const glow = ctx.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, radius);
+    const glow = ctx2d.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, radius);
     glow.addColorStop(0, `rgba(255, 255, 255, ${0.12 * pointer.glow})`);
     glow.addColorStop(0.34, `rgba(255, 70, 106, ${0.07 * pointer.glow})`);
     glow.addColorStop(0.72, `rgba(40, 226, 207, ${0.045 * pointer.glow})`);
     glow.addColorStop(1, "rgba(255, 255, 255, 0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(pointer.x - radius, pointer.y - radius, radius * 2, radius * 2);
+    ctx2d.fillStyle = glow;
+    ctx2d.fillRect(pointer.x - radius, pointer.y - radius, radius * 2, radius * 2);
   }
 
   function drawFrame() {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(staticCanvas, 0, 0);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx2d.setTransform(1, 0, 0, 1, 0, 0);
+    ctx2d.clearRect(0, 0, canvasEl.width, canvasEl.height);
+    ctx2d.drawImage(staticCanvas, 0, 0);
+    ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     for (const tile of activeTiles) {
-      clearTile(ctx, tile);
-      drawTile(ctx, tile, tile.rotation, true);
+      clearTile(ctx2d, tile);
+      drawTile(ctx2d, tile, tile.rotation, true);
     }
 
     drawPointerGlow();

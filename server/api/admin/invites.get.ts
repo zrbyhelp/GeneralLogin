@@ -9,13 +9,39 @@ export default defineEventHandler(async (event) => {
     include: {
       createdBy: {
         select: {
+          account: true,
           email: true,
           name: true
+        }
+      },
+      services: {
+        include: {
+          service: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              enabled: true,
+              allowInviteAccess: true
+            }
+          }
         }
       }
     },
     take: 200
   });
 
-  return { invites };
+  return {
+    invites: invites.map((invite) => ({
+      id: invite.id,
+      label: invite.label,
+      enabled: invite.enabled,
+      maxUses: invite.maxUses,
+      usedCount: invite.usedCount,
+      expiresAt: invite.expiresAt,
+      createdAt: invite.createdAt,
+      createdBy: invite.createdBy,
+      services: invite.services.map((item) => item.service)
+    }))
+  };
 });

@@ -11,6 +11,15 @@ export function getAdminEmails() {
     .filter(Boolean);
 }
 
+export function getAdminAccounts() {
+  const config = getRuntimeConfig();
+  const raw = String(config.adminAccounts || "");
+  return raw
+    .split(",")
+    .map((account: string) => account.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export function getAppUrl() {
   const config = getRuntimeConfig();
   return config.public.appUrl || "http://localhost:3000";
@@ -19,6 +28,20 @@ export function getAppUrl() {
 export function getDefaultCallbackUrl() {
   const config = getRuntimeConfig();
   return config.public.defaultCallbackUrl || "";
+}
+
+export function getMinioConfig() {
+  const config = getRuntimeConfig();
+  return {
+    endpoint: config.minioEndpoint || "",
+    port: Number(config.minioPort || 0) || undefined,
+    useSSL: String(config.minioUseSSL || "false") === "true",
+    accessKey: config.minioAccessKey || "",
+    secretKey: config.minioSecretKey || "",
+    bucket: config.minioBucket || "",
+    region: config.minioRegion || "us-east-1",
+    publicBaseUrl: config.minioPublicBaseUrl || ""
+  };
 }
 
 export function getLinuxdoConfig() {

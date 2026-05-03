@@ -32,11 +32,12 @@ export default defineEventHandler(async (event) => {
     ok: true,
     user: {
       id: result.user.id,
+      account: result.user.account,
       email: result.user.email,
       username: result.user.username,
       name: result.user.name,
       avatarUrl: result.user.avatarUrl,
-      status: result.user.status
+      status: result.user.status === "SUSPENDED" ? "SUSPENDED" : "ACTIVE"
     },
     service: {
       id: result.service.id,

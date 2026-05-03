@@ -1,6 +1,11 @@
 import { AccessRequestStatus, UserStatus, type ServiceApp, type UserProfile } from "@prisma/client";
 import { createError } from "h3";
-import { generateToken, normalizeUrl, sameUrlWithoutSearch, sha256 } from "~/server/utils/crypto";
+import {
+  generateToken,
+  sameUrlWithoutSearch,
+  sha256,
+  tryNormalizeUrl
+} from "~/server/utils/crypto";
 import { prisma } from "~/server/utils/prisma";
 import { writeAuditLog } from "~/server/utils/audit";
 
@@ -21,14 +26,22 @@ export function ensureAllowedCallback(service: ServiceApp, callbackUrl: string) 
     throw createError({ statusCode: 400, statusMessage: "服务未配置回调地址" });
   }
 
-  const target = normalizeUrl(callbackUrl);
-  const matched = allowed.some((allowedUrl) => {
-    try {
-      return sameUrlWithoutSearch(allowedUrl, target.toString());
-    } catch {
-      return false;
-    }
-  });
+  const target = tryNormalizeUrl(callbackUrl);
+  if (!target) {
+    throw createError({ statusCode: 400, statusMessage: "回调地址格式无效" });
+  }
+
+  const validAllowed = allowed.filter((allowedUrl) => tryNormalizeUrl(allowedUrl));
+  if (!validAllowed.length) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: "服务回调地址配置无效，请联系管理员"
+    });
+  }
+
+  const matched = validAllowed.some((allowedUrl) =>
+    sameUrlWithoutSearch(allowedUrl, target.toString())
+  );
 
   if (!matched) {
     throw createError({ statusCode: 400, statusMessage: "回调地址未被允许" });
@@ -40,12 +53,8 @@ export async function canUseService(profile: UserProfile, service: ServiceApp) {
     throw createError({ statusCode: 403, statusMessage: "账号已停用" });
   }
 
-  if (profile.isAdminSnapshot) {
+  if (profile.isAdminSnapshot || service.allowDirectAccess) {
     return true;
-  }
-
-  if (profile.status !== UserStatus.APPROVED) {
-    throw createError({ statusCode: 403, statusMessage: "账号未审核" });
   }
 
   const access = await prisma.userServiceAccess.findUnique({
@@ -62,6 +71,83 @@ export async function canUseService(profile: UserProfile, service: ServiceApp) {
   }
 
   return true;
+}
+
+export async function getServiceAccessState(profile: UserProfile, service: ServiceApp) {
+  const isSuspended = profile.status === UserStatus.SUSPENDED;
+  const access = profile.isAdminSnapshot || service.allowDirectAccess || isSuspended
+    ? null
+    : await prisma.userServiceAccess.findUnique({
+        where: {
+          userId_serviceId: {
+            userId: profile.id,
+            serviceId: service.id
+          }
+        }
+      });
+
+  const pendingRequest = isSuspended
+    ? null
+    : await prisma.accessRequest.findFirst({
+        where: {
+          requesterId: profile.id,
+          serviceId: service.id,
+          status: AccessRequestStatus.PENDING
+        },
+        select: { id: true }
+      });
+
+  const canAccess = !isSuspended && (
+    profile.isAdminSnapshot ||
+    service.allowDirectAccess ||
+    Boolean(access?.allowed)
+  );
+
+  return {
+    canAccess,
+    hasExplicitAccess: Boolean(access?.allowed),
+    hasPendingRequest: Boolean(pendingRequest),
+    pendingRequestId: pendingRequest?.id ?? null,
+    requiresInvite: !canAccess && service.allowInviteAccess,
+    requiresRequest: !canAccess && service.allowAccessRequest
+  };
+}
+
+export async function requireServiceClient(params: {
+  clientId: string;
+  clientSecret: string;
+}) {
+  const service = await prisma.serviceApp.findUnique({
+    where: { clientId: params.clientId }
+  });
+
+  if (!service || !service.enabled) {
+    throw createError({ statusCode: 401, statusMessage: "服务不可用" });
+  }
+
+  if (service.clientSecretHash !== sha256(params.clientSecret)) {
+    throw createError({ statusCode: 401, statusMessage: "服务密钥错误" });
+  }
+
+  return service;
+}
+
+export async function requireServiceAccessibleUser(params: {
+  clientId: string;
+  clientSecret: string;
+  userId: string;
+}) {
+  const service = await requireServiceClient(params);
+  const user = await prisma.userProfile.findUnique({
+    where: { id: params.userId }
+  });
+
+  if (!user) {
+    throw createError({ statusCode: 404, statusMessage: "用户不存在" });
+  }
+
+  await canUseService(user, service);
+  return { service, user };
 }
 
 export async function createServiceAuthCode(params: {
@@ -100,17 +186,7 @@ export async function consumeServiceAuthCode(params: {
   clientSecret: string;
   code: string;
 }) {
-  const service = await prisma.serviceApp.findUnique({
-    where: { clientId: params.clientId }
-  });
-
-  if (!service || !service.enabled) {
-    throw createError({ statusCode: 401, statusMessage: "服务不可用" });
-  }
-
-  if (service.clientSecretHash !== sha256(params.clientSecret)) {
-    throw createError({ statusCode: 401, statusMessage: "服务密钥错误" });
-  }
+  const service = await requireServiceClient(params);
 
   const authCode = await prisma.serviceAuthCode.findUnique({
     where: { codeHash: sha256(params.code) },
@@ -165,6 +241,10 @@ export async function createOrReuseAccessRequest(params: {
   service: ServiceApp;
   message?: string | null;
 }) {
+  if (!params.service.allowAccessRequest) {
+    throw createError({ statusCode: 403, statusMessage: "此服务未开放申请" });
+  }
+
   const existing = await prisma.accessRequest.findFirst({
     where: {
       requesterId: params.profile.id,

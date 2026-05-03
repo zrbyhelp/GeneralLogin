@@ -8,7 +8,7 @@ import {
   setCookie,
   type H3Event
 } from "h3";
-import { getAdminEmails } from "~/server/utils/config";
+import { getAdminAccounts, getAdminEmails } from "~/server/utils/config";
 import { generateToken, sha256 } from "~/server/utils/crypto";
 import { isAdminEmail, syncAdminSnapshot } from "~/server/utils/auth-service";
 import { prisma } from "~/server/utils/prisma";
@@ -91,27 +91,29 @@ export async function requirePortalUser(event: H3Event) {
 export async function requireAdminUser(event: H3Event) {
   const session = await requirePortalUser(event);
   const adminEmails = getAdminEmails();
+  const adminAccounts = getAdminAccounts();
 
-  if (!adminEmails.length) {
+  if (!adminEmails.length && !adminAccounts.length) {
     throw createError({
       statusCode: 500,
-      message: "未配置管理员邮箱"
+      message: "未配置管理员账号"
     });
   }
 
-  if (!session.profile.isAdminSnapshot && !isAdminEmail(session.profile.email)) {
+  if (
+    !session.profile.isAdminSnapshot &&
+    !adminAccounts.includes((session.profile.account || "").toLowerCase()) &&
+    !isAdminEmail(session.profile.email)
+  ) {
     throw createError({ statusCode: 403, message: "无管理员权限" });
   }
 
+  await ensureActiveUser(session.profile);
   return session;
 }
 
-export async function ensureApprovedAccess(profile: UserProfile) {
+export async function ensureActiveUser(profile: UserProfile) {
   if (profile.status === UserStatus.SUSPENDED) {
     throw createError({ statusCode: 403, message: "账号已停用" });
-  }
-
-  if (profile.status !== UserStatus.APPROVED && !profile.isAdminSnapshot) {
-    throw createError({ statusCode: 403, message: "账号未审核" });
   }
 }

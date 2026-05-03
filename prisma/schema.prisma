@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum UserStatus {
+  ACTIVE
   PENDING
   APPROVED
   SUSPENDED
@@ -19,30 +20,39 @@ enum AccessRequestStatus {
   REJECTED
 }
 
+enum FeedbackStatus {
+  NEW
+  REVIEWING
+  RESOLVED
+}
+
 model UserProfile {
-  id               String              @id @default(cuid())
-  email            String?             @unique
-  username         String?
-  name             String?
-  avatarUrl        String?             @db.Text
-  passwordHash     String?
-  status           UserStatus          @default(PENDING)
-  isAdminSnapshot  Boolean             @default(false)
-  approvedAt       DateTime?
-  approvedById     String?
-  lastLoginAt      DateTime?
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  approvedBy       UserProfile?        @relation("UserApprovals", fields: [approvedById], references: [id])
-  approvedUsers    UserProfile[]       @relation("UserApprovals")
-  issuedInvites    InviteCode[]        @relation("InviteIssuer")
-  accounts         AuthAccount[]
-  sessions         AuthSession[]
-  serviceAccess    UserServiceAccess[]
-  requests         AccessRequest[]     @relation("AccessRequester")
-  reviewedRequests AccessRequest[]     @relation("AccessReviewer")
-  authCodes        ServiceAuthCode[]
-  auditLogs        AuditLog[]          @relation("AuditActor")
+  id                String              @id @default(cuid())
+  account           String?             @unique
+  email             String?             @unique
+  username          String?
+  name              String?
+  avatarUrl         String?             @db.Text
+  passwordHash      String?
+  status            UserStatus          @default(ACTIVE)
+  isAdminSnapshot   Boolean             @default(false)
+  approvedAt        DateTime?
+  approvedById      String?
+  lastLoginAt       DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  approvedBy        UserProfile?        @relation("UserApprovals", fields: [approvedById], references: [id])
+  approvedUsers     UserProfile[]       @relation("UserApprovals")
+  issuedInvites     InviteCode[]        @relation("InviteIssuer")
+  accounts          AuthAccount[]
+  sessions          AuthSession[]
+  serviceAccess     UserServiceAccess[]
+  requests          AccessRequest[]     @relation("AccessRequester")
+  reviewedRequests  AccessRequest[]     @relation("AccessReviewer")
+  authCodes         ServiceAuthCode[]
+  feedbacks         Feedback[]          @relation("FeedbackAuthor")
+  reviewedFeedbacks Feedback[]          @relation("FeedbackReviewer")
+  auditLogs         AuditLog[]          @relation("AuditActor")
 
   @@index([email])
   @@index([username])
@@ -65,65 +75,84 @@ model AuthAccount {
 }
 
 model AuthSession {
-  id          String      @id @default(cuid())
-  tokenHash   String      @unique
-  userId      String
-  expiresAt   DateTime
-  lastSeenAt  DateTime    @default(now())
-  userAgent   String?     @db.Text
-  ipAddress   String?
-  createdAt   DateTime    @default(now())
-  user        UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id         String      @id @default(cuid())
+  tokenHash  String      @unique
+  userId     String
+  expiresAt  DateTime
+  lastSeenAt DateTime    @default(now())
+  userAgent  String?     @db.Text
+  ipAddress  String?
+  createdAt  DateTime    @default(now())
+  user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
 }
 
 model InviteCode {
-  id                String   @id @default(cuid())
+  id                String              @id @default(cuid())
   label             String
-  codeHash          String   @unique
-  enabled           Boolean  @default(true)
-  maxUses           Int      @default(1)
-  usedCount         Int      @default(0)
-  grantsAllServices Boolean  @default(false)
+  codeHash          String              @unique
+  enabled           Boolean             @default(true)
+  maxUses           Int                 @default(1)
+  usedCount         Int                 @default(0)
+  /// Legacy compatibility only. New authorization uses InviteCodeService.
+  grantsAllServices Boolean             @default(false)
   expiresAt         DateTime?
   createdById       String?
-  createdBy         UserProfile? @relation("InviteIssuer", fields: [createdById], references: [id])
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdBy         UserProfile?        @relation("InviteIssuer", fields: [createdById], references: [id])
+  services          InviteCodeService[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
 
   @@index([enabled])
 }
 
 model ServiceApp {
-  id                String              @id @default(cuid())
-  name              String
-  slug              String              @unique
-  description       String?             @db.Text
-  homeUrl           String
-  callbackUrls      Json
-  clientId          String              @unique
-  clientSecretHash  String
-  enabled           Boolean             @default(true)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
-  access            UserServiceAccess[]
-  requests          AccessRequest[]
-  authCodes         ServiceAuthCode[]
+  id                 String              @id @default(cuid())
+  name               String
+  slug               String              @unique
+  description        String?             @db.Text
+  homeUrl            String
+  healthCheckUrl     String?             @db.Text
+  docsUrl            String?             @db.Text
+  callbackUrls       Json
+  clientId           String              @unique
+  clientSecretHash   String
+  enabled            Boolean             @default(true)
+  allowDirectAccess  Boolean             @default(false)
+  allowInviteAccess  Boolean             @default(true)
+  allowAccessRequest Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  access             UserServiceAccess[]
+  requests           AccessRequest[]
+  authCodes          ServiceAuthCode[]
+  inviteCodes        InviteCodeService[]
+  feedbacks          Feedback[]
 
   @@index([enabled])
 }
 
+model InviteCodeService {
+  inviteId  String
+  serviceId String
+  invite    InviteCode @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  service   ServiceApp @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([inviteId, serviceId])
+  @@index([serviceId])
+}
+
 model UserServiceAccess {
-  id         String      @id @default(cuid())
-  userId     String
-  serviceId  String
-  allowed    Boolean     @default(true)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
-  service    ServiceApp  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  id        String      @id @default(cuid())
+  userId    String
+  serviceId String
+  allowed   Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  user      UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service   ServiceApp  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
   @@unique([userId, serviceId])
   @@index([serviceId])
@@ -176,4 +205,39 @@ model AuditLog {
 
   @@index([action])
   @@index([targetType, targetId])
+}
+
+model OpenSourceCredit {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  sortOrder Int      @default(0)
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([enabled])
+  @@index([sortOrder])
+}
+
+model Feedback {
+  id           String         @id @default(cuid())
+  type         String
+  content      String         @db.Text
+  contact      String?        @db.Text
+  sourceUrl    String?        @db.Text
+  status       FeedbackStatus @default(NEW)
+  serviceId    String?
+  userId       String?
+  reviewedAt   DateTime?
+  reviewedById String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  service      ServiceApp?    @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  user         UserProfile?   @relation("FeedbackAuthor", fields: [userId], references: [id], onDelete: SetNull)
+  reviewedBy   UserProfile?   @relation("FeedbackReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status])
+  @@index([serviceId])
+  @@index([userId])
 }

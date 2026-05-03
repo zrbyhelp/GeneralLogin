@@ -1,0 +1,15 @@
+.git
+.nuxt
+.output
+node_modules
+node_modules/.cache
+.env
+.env.*
+!.env.example
+*.log
+*.local
+nuxt-dev.log
+nuxt-dev.err.log
+tmp-*.png
+prisma/dev.db
+public/docs

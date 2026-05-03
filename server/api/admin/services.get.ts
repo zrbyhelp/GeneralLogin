@@ -22,9 +22,14 @@ export default defineEventHandler(async (event) => {
       slug: service.slug,
       description: service.description,
       homeUrl: service.homeUrl,
+      healthCheckUrl: service.healthCheckUrl,
+      docsUrl: service.docsUrl,
       callbackUrls: parseCallbackUrls(service.callbackUrls),
       clientId: service.clientId,
       enabled: service.enabled,
+      allowDirectAccess: service.allowDirectAccess,
+      allowInviteAccess: service.allowInviteAccess,
+      allowAccessRequest: service.allowAccessRequest,
       accessCount: service.access.length,
       createdAt: service.createdAt
     }))

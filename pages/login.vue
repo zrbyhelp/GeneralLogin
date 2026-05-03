@@ -2,80 +2,85 @@
   <div class="login-page">
     <section class="login-panel">
       <div class="login-copy">
-        <p class="eyebrow">{{ copy.eyebrow }}</p>
+        <p class="eyebrow">{{ t("login.eyebrow") }}</p>
         <h1>{{ appName }}</h1>
-        <div class="managed-tags" :aria-label="copy.managedServicesLabel">
-          <span v-if="!servicesReady">{{ copy.loadingServices }}</span>
+        <div class="managed-tags" :aria-label="t('login.managedServicesLabel')">
+          <span v-if="!servicesReady">{{ t("login.loadingServices") }}</span>
           <template v-else>
             <span
               v-for="service in managedServices"
               :key="service.id"
-              :title="service.host || service.slug"
+              class="service-tag"
+              :title="serviceTitle(service)"
             >
+              <i class="status-dot" :class="`status-dot--${service.status}`" aria-hidden="true" />
               {{ service.name }}
             </span>
-            <span v-if="managedServices.length === 0">{{ copy.noServices }}</span>
+            <span v-if="managedServices.length === 0">{{ t("login.noServices") }}</span>
           </template>
         </div>
+        <div class="login-links" aria-label="portal links">
+          <button type="button" @click="openCredits">{{ t("login.openSourceCredits") }}</button>
+          <button type="button" @click="openDocs">{{ t("login.docsList") }}</button>
+          <NuxtLink to="/feedback">{{ t("login.feedback") }}</NuxtLink>
+        </div>
         <div v-if="externalLogin" class="portal-note">
-          {{ copy.externalLoginPrefix }}{{ serviceLabel }}
+          {{ t("login.externalLoginPrefix") }}{{ serviceLabel }}
         </div>
       </div>
 
       <div class="login-box">
-        <div class="auth-tabs" role="tablist" :aria-label="copy.authModeLabel">
+        <div class="auth-tabs" role="tablist" :aria-label="t('login.authModeLabel')">
           <button :class="{ active: mode === 'login' }" type="button" @click="mode = 'login'">
-            {{ copy.loginTab }}
+            {{ t("login.loginTab") }}
           </button>
           <button :class="{ active: mode === 'register' }" type="button" @click="mode = 'register'">
-            {{ copy.registerTab }}
+            {{ t("login.registerTab") }}
           </button>
         </div>
 
         <form class="auth-form" @submit.prevent="submitEmailAuth">
           <label v-if="mode === 'register'">
-            <span class="field-label">{{ copy.nameLabel }}</span>
-            <input v-model="form.name" class="field-input" autocomplete="name" :placeholder="copy.namePlaceholder" />
+            <span class="field-label">{{ t("common.name") }}</span>
+            <input v-model="form.name" class="field-input" autocomplete="name" :placeholder="t('login.namePlaceholder')" />
           </label>
           <label>
-            <span class="field-label">{{ copy.emailLabel }}</span>
+            <span class="field-label">{{ t("common.account") }}</span>
             <input
-              v-model="form.email"
+              v-model="form.account"
               class="field-input"
-              autocomplete="email"
-              inputmode="email"
-              :placeholder="copy.emailPlaceholder"
-              type="email"
+              autocomplete="username"
+              :placeholder="t('login.accountPlaceholder')"
             />
           </label>
           <label>
-            <span class="field-label">{{ copy.passwordLabel }}</span>
+            <span class="field-label">{{ t("common.password") }}</span>
             <input
               v-model="form.password"
               class="field-input"
               :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
-              :placeholder="copy.passwordPlaceholder"
+              :placeholder="t('login.passwordPlaceholder')"
               type="password"
             />
           </label>
 
           <button class="primary-btn auth-submit" type="submit" :disabled="submitting">
-            {{ mode === "login" ? copy.emailLogin : copy.emailRegister }}
+            {{ mode === "login" ? t("login.accountLogin") : t("login.accountRegister") }}
           </button>
         </form>
 
-        <div class="divider"><span>{{ copy.orText }}</span></div>
+        <div class="divider"><span>{{ t("login.or") }}</span></div>
 
         <button class="linuxdo-btn" type="button" @click="startLinuxdoLogin">
-          {{ copy.linuxdoLogin }}
+          {{ t("login.linuxdoLogin") }}
         </button>
 
         <div class="login-preferences">
           <button
             class="theme-toggle"
             type="button"
-            :aria-label="theme === 'light' ? copy.darkTheme : copy.lightTheme"
-            :title="theme === 'light' ? copy.darkTheme : copy.lightTheme"
+            :aria-label="theme === 'light' ? t('common.themeDark') : t('common.themeLight')"
+            :title="theme === 'light' ? t('common.themeDark') : t('common.themeLight')"
             @click="toggleTheme"
           >
             <svg v-if="theme === 'light'" class="theme-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -87,13 +92,13 @@
             </svg>
           </button>
 
-          <div class="language-text-toggle" :aria-label="copy.languageLabel">
+          <div class="language-text-toggle" :aria-label="t('common.language')">
             <button
               type="button"
               :class="{ active: locale === 'zh' }"
               @click="setLocale('zh')"
             >
-              {{ copy.zhLang }}
+              {{ t("common.zh") }}
             </button>
             <span aria-hidden="true">/</span>
             <button
@@ -101,144 +106,95 @@
               :class="{ active: locale === 'en' }"
               @click="setLocale('en')"
             >
-              {{ copy.enLang }}
+              {{ t("common.en") }}
             </button>
           </div>
         </div>
 
         <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
         <p class="muted small-note">
-          {{ copy.securityNote }}
+          {{ t("login.securityNote") }}
         </p>
       </div>
     </section>
+
+    <el-dialog v-model="creditsVisible" :title="t('login.openSourceCredits')" width="460px">
+      <div v-if="openSourceCredits.length" class="dialog-list">
+        <a
+          v-for="credit in openSourceCredits"
+          :key="credit.id"
+          :href="credit.url"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {{ credit.name }}
+        </a>
+      </div>
+      <p v-else class="muted">{{ t("login.noCredits") }}</p>
+    </el-dialog>
+
+    <el-dialog v-model="docsVisible" :title="t('login.docsList')" width="520px">
+      <div class="dialog-list">
+        <a href="/docs/">{{ t("login.portalDocs") }}</a>
+        <a
+          v-for="service in docsServices"
+          :key="service.id"
+          :href="service.docsUrl || '#'"
+          target="_blank"
+          rel="noreferrer"
+        >
+          {{ service.name }}
+        </a>
+      </div>
+      <p v-if="docsServices.length === 0" class="muted docs-note">{{ t("login.noDocs") }}</p>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from "vue";
 
-type Theme = "light" | "dark";
-type Locale = "zh" | "en";
-
 type PublicService = {
   id: string;
   name: string;
   slug: string;
   host: string;
+  docsUrl?: string | null;
+  status: "online" | "offline";
 };
 
-const THEME_KEY = "portal-theme";
-const LOCALE_KEY = "portal-locale";
-
-const messages = {
-  zh: {
-    eyebrow: "登录入口",
-    managedServicesLabel: "目前管理的服务和网站",
-    loadingServices: "正在加载服务...",
-    noServices: "暂无已启用服务",
-    externalLoginPrefix: "正在为外部服务发起登录：",
-    authModeLabel: "认证模式",
-    loginTab: "登录",
-    registerTab: "注册",
-    nameLabel: "名称",
-    namePlaceholder: "你的名字",
-    emailLabel: "邮箱",
-    emailPlaceholder: "you@example.com",
-    passwordLabel: "密码",
-    passwordPlaceholder: "至少 8 位",
-    emailLogin: "邮箱登录",
-    emailRegister: "邮箱注册",
-    orText: "或",
-    linuxdoLogin: "使用 Linux.do 登录",
-    themeLabel: "日夜切换",
-    lightTheme: "日间",
-    darkTheme: "夜间",
-    languageLabel: "中英文切换",
-    zhLang: "中文",
-    enLang: "EN",
-    securityNote: "新用户注册或第三方登录后，仍需要邀请码或管理员审核才能访问服务。",
-    unknownService: "未指定服务",
-    authFailed: "认证失败"
-  },
-  en: {
-    eyebrow: "Login Portal",
-    managedServicesLabel: "Managed services and websites",
-    loadingServices: "Loading services...",
-    noServices: "No enabled services yet",
-    externalLoginPrefix: "Starting login for external service: ",
-    authModeLabel: "Authentication mode",
-    loginTab: "Sign in",
-    registerTab: "Sign up",
-    nameLabel: "Name",
-    namePlaceholder: "Your name",
-    emailLabel: "Email",
-    emailPlaceholder: "you@example.com",
-    passwordLabel: "Password",
-    passwordPlaceholder: "At least 8 characters",
-    emailLogin: "Email sign in",
-    emailRegister: "Create account",
-    orText: "or",
-    linuxdoLogin: "Continue with Linux.do",
-    themeLabel: "Theme",
-    lightTheme: "Light",
-    darkTheme: "Dark",
-    languageLabel: "Language",
-    zhLang: "中文",
-    enLang: "EN",
-    securityNote: "New users still need an invite code or admin review before they can access services.",
-    unknownService: "Unspecified service",
-    authFailed: "Authentication failed"
-  }
-} as const;
+type OpenSourceCredit = {
+  id: string;
+  name: string;
+  url: string;
+};
 
 const route = useRoute();
 const runtimeConfig = useRuntimeConfig();
+const { t, localizeError, theme, locale, toggleTheme, setLocale } = usePortalI18n();
 const appName = computed(() => runtimeConfig.public.appName || "ZR-AI服务");
 const mode = ref<"login" | "register">("login");
-const theme = ref<Theme>("light");
-const locale = ref<Locale>("zh");
 const submitting = ref(false);
 const errorMessage = ref("");
 const form = reactive({
-  email: "",
+  account: "",
   password: "",
   name: ""
 });
 const servicesReady = ref(false);
+const creditsVisible = ref(false);
+const docsVisible = ref(false);
 
 const clientId = computed(() => String(route.query.client_id || ""));
 const callbackUrl = computed(() => String(route.query.callback || ""));
 const state = computed(() => String(route.query.state || ""));
 const externalLogin = computed(() => Boolean(clientId.value && callbackUrl.value));
-const copy = computed(() => messages[locale.value]);
-const serviceLabel = computed(() => clientId.value || copy.value.unknownService);
+const serviceLabel = computed(() => clientId.value || t("login.unknownService"));
 const managedServices = ref<PublicService[]>([]);
-
-function setTheme(nextTheme: Theme) {
-  theme.value = nextTheme;
-  if (import.meta.client) {
-    localStorage.setItem(THEME_KEY, nextTheme);
-  }
-}
-
-function toggleTheme() {
-  setTheme(theme.value === "light" ? "dark" : "light");
-}
-
-function setLocale(nextLocale: Locale) {
-  locale.value = nextLocale;
-  if (import.meta.client) {
-    localStorage.setItem(LOCALE_KEY, nextLocale);
-  }
-}
-
-useHead(() => ({
-  htmlAttrs: {
-    lang: locale.value === "en" ? "en" : "zh-CN",
-    "data-theme": theme.value
-  }
-}));
+const openSourceCredits = ref<OpenSourceCredit[]>([]);
+const docsServices = computed(() =>
+  managedServices.value.filter((service) => Boolean(service.docsUrl))
+);
 
 async function loadManagedServices() {
   try {
@@ -247,6 +203,33 @@ async function loadManagedServices() {
   } catch {
     managedServices.value = [];
   }
+}
+
+async function loadOpenSourceCredits() {
+  try {
+    const result = await $fetch<{ credits: OpenSourceCredit[] }>("/api/public/open-source-credits");
+    openSourceCredits.value = result.credits;
+  } catch {
+    openSourceCredits.value = [];
+  }
+}
+
+function openCredits() {
+  creditsVisible.value = true;
+  if (!openSourceCredits.value.length) {
+    loadOpenSourceCredits();
+  }
+}
+
+function openDocs() {
+  docsVisible.value = true;
+}
+
+function serviceTitle(service: PublicService) {
+  const status = service.status === "online"
+    ? t("login.serviceOnline")
+    : t("login.serviceOffline");
+  return `${service.host || service.slug} · ${status}`;
 }
 
 async function continueAfterAuth() {
@@ -259,7 +242,9 @@ async function continueAfterAuth() {
       body: {
         clientId: clientId.value,
         callbackUrl: callbackUrl.value,
-        state: state.value || undefined
+        state: state.value || undefined,
+        theme: theme.value,
+        locale: locale.value
       }
     });
 
@@ -273,11 +258,6 @@ async function continueAfterAuth() {
   }
 
   const me = await $fetch<{ status: string; isAdmin?: boolean }>("/api/portal/me");
-  if (me.status === "PENDING") {
-    await navigateTo("/onboarding");
-    return;
-  }
-
   if (me.isAdmin) {
     await navigateTo("/admin");
     return;
@@ -295,7 +275,7 @@ async function submitEmailAuth() {
     await $fetch(endpoint, {
       method: "POST",
       body: {
-        email: form.email,
+        account: form.account,
         password: form.password,
         name: form.name || undefined
       }
@@ -303,7 +283,7 @@ async function submitEmailAuth() {
     await continueAfterAuth();
   } catch (error: any) {
     errorMessage.value =
-      error?.data?.message || error?.data?.statusMessage || error?.message || copy.value.authFailed;
+      localizeError(error, "error.authFailed");
   } finally {
     submitting.value = false;
   }
@@ -320,25 +300,14 @@ function startLinuxdoLogin() {
   if (state.value) {
     params.set("state", state.value);
   }
-  if (form.email) {
-    params.set("login_hint", form.email);
-  }
-
+  params.set("theme", theme.value);
+  params.set("locale", locale.value);
   window.location.href = `/api/auth/linuxdo/start${params.toString() ? `?${params}` : ""}`;
 }
 
 onMounted(async () => {
-  const storedTheme = localStorage.getItem(THEME_KEY);
-  if (storedTheme === "light" || storedTheme === "dark") {
-    theme.value = storedTheme;
-  }
-
-  const storedLocale = localStorage.getItem(LOCALE_KEY);
-  if (storedLocale === "zh" || storedLocale === "en") {
-    locale.value = storedLocale;
-  }
-
   await loadManagedServices();
+  await loadOpenSourceCredits();
   servicesReady.value = true;
 
   try {
@@ -417,6 +386,7 @@ h1 {
 .managed-tags span {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
   min-height: 34px;
   border: 1px solid var(--page-border);
   border-radius: 999px;
@@ -425,6 +395,60 @@ h1 {
   color: var(--page-muted);
   font-size: 13px;
   font-weight: 700;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.12);
+}
+
+.status-dot--online {
+  background: #10b981;
+}
+
+.status-dot--offline {
+  background: #ef4444;
+}
+
+.login-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.login-links button,
+.login-links a {
+  border: 1px solid var(--page-border);
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: var(--page-surface-strong);
+  color: var(--page-text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dialog-list {
+  display: grid;
+  gap: 10px;
+}
+
+.dialog-list a {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  border: 1px solid var(--page-border);
+  border-radius: 12px;
+  padding: 9px 12px;
+  background: var(--page-surface);
+  color: var(--page-text);
+}
+
+.docs-note {
+  margin: 12px 0 0;
 }
 
 .login-box {

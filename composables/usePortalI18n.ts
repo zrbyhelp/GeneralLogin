@@ -1,0 +1,600 @@
+import { onMounted, watch } from "vue";
+import { useHead, useRoute, useState } from "#imports";
+
+export type PortalTheme = "light" | "dark";
+export type PortalLocale = "zh" | "en";
+
+const THEME_KEY = "portal-theme";
+const LOCALE_KEY = "portal-locale";
+
+const messages = {
+  zh: {
+    "common.login": "登录",
+    "common.logout": "退出",
+    "common.save": "保存",
+    "common.edit": "编辑",
+    "common.delete": "删除",
+    "common.cancel": "取消",
+    "common.upload": "上传",
+    "common.close": "关闭",
+    "common.loading": "正在加载...",
+    "common.backToApps": "返回服务列表",
+    "common.relogin": "重新登录",
+    "common.submit": "提交",
+    "common.enabled": "启用",
+    "common.disabled": "停用",
+    "common.status": "状态",
+    "common.actions": "操作",
+    "common.user": "用户",
+    "common.service": "服务",
+    "common.description": "说明",
+    "common.name": "名称",
+    "common.account": "账号",
+    "common.username": "用户名",
+    "common.email": "邮箱",
+    "common.password": "密码",
+    "common.currentPassword": "当前密码",
+    "common.newPassword": "新密码",
+    "common.avatar": "头像",
+    "common.profile": "个人资料",
+    "common.changePassword": "修改密码",
+    "common.thirdPartyAccount": "第三方账号",
+    "common.themeLight": "日间",
+    "common.themeDark": "夜间",
+    "common.language": "语言",
+    "common.zh": "中文",
+    "common.en": "EN",
+
+    "login.eyebrow": "登录入口",
+    "login.managedServicesLabel": "目前管理的服务和网站",
+    "login.loadingServices": "正在加载服务...",
+    "login.noServices": "暂无已启用服务",
+    "login.externalLoginPrefix": "正在为外部服务发起登录：",
+    "login.authModeLabel": "认证模式",
+    "login.loginTab": "登录",
+    "login.registerTab": "注册",
+    "login.namePlaceholder": "你的名字",
+    "login.accountPlaceholder": "例如 admin",
+    "login.passwordPlaceholder": "至少 8 位",
+    "login.accountLogin": "账号登录",
+    "login.accountRegister": "账号注册",
+    "login.or": "或",
+    "login.linuxdoLogin": "使用 Linux.do 登录",
+    "login.securityNote": "新用户注册或第三方登录后，仍需要邀请码或管理员审核才能访问服务。",
+    "login.unknownService": "未指定服务",
+    "login.serviceOnline": "在线",
+    "login.serviceOffline": "异常",
+    "login.openSourceCredits": "开源感谢名单",
+    "login.docsList": "文档列表",
+    "login.feedback": "投诉建议",
+    "login.noDocs": "暂无文档入口",
+    "login.noCredits": "暂无开源感谢名单",
+    "login.portalDocs": "本应用对接文档",
+
+    "apps.title": "网站服务",
+    "apps.subtitle": "已启用的网站都会显示在这里，没有权限的网站会标注获取方式。",
+    "apps.admin": "管理后台",
+    "apps.loading": "正在加载服务...",
+    "apps.requestAccess": "提交申请",
+    "apps.emptyTitle": "暂无网站服务",
+    "apps.emptyAdmin": "当前没有配置网站服务，可以先进入后台维护。",
+    "apps.emptyUser": "请稍后再试。",
+    "apps.canAccess": "可访问",
+    "apps.defaultDescription": "网站服务",
+    "apps.enter": "进入服务",
+    "apps.waiting": "等待审核",
+    "apps.pending": "待审核",
+    "apps.needInviteRequest": "需邀请码/申请",
+    "apps.needInvite": "需邀请码",
+    "apps.needRequest": "需申请",
+    "apps.notOpen": "未开放",
+    "apps.getAccess": "获取权限",
+    "apps.fillInvite": "填写邀请码",
+    "apps.cannotAccess": "不可访问",
+
+    "onboarding.title": "获取网站权限",
+    "onboarding.subtitle": "使用管理员发放的邀请码，或为指定网站提交访问申请。",
+    "onboarding.service": "申请网站",
+    "onboarding.selectService": "请选择要申请的网站",
+    "onboarding.currentService": "当前网站：{name}，{hint}",
+    "onboarding.inviteTitle": "邀请码授权",
+    "onboarding.inviteHelp": "一个邀请码可以同时授权多个网站。",
+    "onboarding.inviteCode": "邀请码",
+    "onboarding.useInvite": "使用邀请码",
+    "onboarding.requestTitle": "提交申请",
+    "onboarding.requestHelp": "说明用途，等待管理员审核该网站权限。",
+    "onboarding.requestMessage": "申请说明",
+    "onboarding.requestPlaceholder": "例如：我是某某项目成员，需要访问内部演示站。",
+    "onboarding.notOpenTitle": "暂未开放申请",
+    "onboarding.notOpenHelp": "当前网站没有开放邀请码或申请入口，请联系管理员处理。",
+    "onboarding.hintPending": "申请待审核",
+    "onboarding.hintInviteRequest": "可使用邀请码或提交申请",
+    "onboarding.hintInvite": "需要邀请码",
+    "onboarding.hintRequest": "可以提交申请",
+    "onboarding.hintNotOpen": "暂未开放申请",
+
+    "pending.badge": "待审核",
+    "pending.title": "申请已提交",
+    "pending.text": "管理员审核通过后，你会在服务列表中看到可访问的网站服务。",
+    "pending.refresh": "刷新服务列表",
+    "pending.backLogin": "返回登录",
+    "relogin.title": "重新登录",
+    "relogin.text": "正在清理当前会话并重新进入登录流程。",
+
+    "profile.title": "个人资料",
+    "profile.passwordTitle": "修改密码",
+    "profile.avatarHelp": "支持 JPG、PNG、WEBP、GIF，最大 2MB。",
+    "profile.namePlaceholder": "显示名称",
+    "profile.usernamePlaceholder": "用户名",
+    "profile.currentPasswordPlaceholder": "已有密码时必填",
+    "profile.newPasswordPlaceholder": "至少 8 位",
+    "profile.setInitialPassword": "当前账号尚未设置门户密码，可直接设置初始密码。",
+
+    "admin.title": "管理后台",
+    "admin.subtitle": "后台 API 已做服务端管理员鉴权，只有管理员账号可访问。",
+    "admin.backApps": "返回服务列表",
+    "admin.statUsers": "用户",
+    "admin.statSuspendedUsers": "停用用户",
+    "admin.statServices": "网站服务",
+    "admin.statPendingRequests": "待审核申请",
+    "admin.tabRequests": "申请审核",
+    "admin.tabUsers": "用户管理",
+    "admin.tabInvites": "邀请码",
+    "admin.tabServices": "网站服务",
+    "admin.tabOpenSource": "开源感谢",
+    "admin.tabFeedback": "投诉建议",
+    "admin.requestMessage": "说明",
+    "admin.approve": "通过",
+    "admin.reject": "拒绝",
+    "admin.serviceAccess": "服务权限",
+    "admin.inviteLabel": "名称",
+    "admin.inviteLabelPlaceholder": "例如：五月内测",
+    "admin.maxUses": "可用次数",
+    "admin.expiresAt": "过期时间",
+    "admin.inviteServices": "可授权网站",
+    "admin.inviteServicesPlaceholder": "选择一个或多个开放邀请码的网站",
+    "admin.createInvite": "生成邀请码",
+    "admin.newInvite": "新邀请码：{code}",
+    "admin.uses": "使用",
+    "admin.authorizedServices": "授权网站",
+    "admin.createdBy": "创建人",
+    "admin.serviceName": "服务名称",
+    "admin.serviceNamePlaceholder": "Docs / CRM / Demo",
+    "admin.homeUrl": "入口地址",
+    "admin.healthCheckUrl": "健康检查地址",
+    "admin.healthCheckUrlPlaceholder": "https://app.example.com/health",
+    "admin.docsUrl": "文档地址",
+    "admin.docsUrlPlaceholder": "https://app.example.com/docs",
+    "admin.serviceDescription": "说明",
+    "admin.serviceDescriptionPlaceholder": "给用户看的服务描述",
+    "admin.callbackUrls": "允许的回调地址，每行一个",
+    "admin.allowDirect": "允许直接访问",
+    "admin.allowInvite": "允许邀请码",
+    "admin.allowRequest": "允许申请审核",
+    "admin.createService": "创建服务",
+    "admin.newSecret": "新服务密钥：{secret}",
+    "admin.clientId": "Client ID",
+    "admin.callback": "回调地址",
+    "admin.accessModes": "访问方式",
+    "admin.switches": "开关",
+    "admin.direct": "直接",
+    "admin.invite": "邀请码",
+    "admin.request": "申请",
+    "admin.rotateSecret": "轮换密钥",
+    "admin.editService": "编辑服务",
+    "admin.saveService": "保存服务",
+    "admin.openSourceName": "开源名称",
+    "admin.openSourceUrl": "开源地址",
+    "admin.sortOrder": "排序",
+    "admin.createOpenSource": "添加开源项",
+    "admin.feedbackType": "类型",
+    "admin.feedbackContent": "内容",
+    "admin.feedbackContact": "联系方式",
+    "admin.feedbackSource": "来源",
+    "admin.feedbackStatusNew": "未处理",
+    "admin.feedbackStatusReviewing": "处理中",
+    "admin.feedbackStatusResolved": "已处理",
+    "admin.markReviewing": "标记处理中",
+    "admin.markResolved": "标记已处理",
+
+    "feedback.title": "投诉建议",
+    "feedback.subtitle": "告诉我们遇到的问题或改进建议。",
+    "feedback.type": "反馈类型",
+    "feedback.typeSuggestion": "建议",
+    "feedback.typeComplaint": "投诉",
+    "feedback.typeBug": "问题反馈",
+    "feedback.content": "内容",
+    "feedback.contentPlaceholder": "请描述你的问题、建议或期望。",
+    "feedback.contactPlaceholder": "可选，邮箱/微信/手机号",
+    "feedback.submit": "提交反馈",
+    "feedback.success": "反馈已提交，感谢你的补充。",
+
+    "notice.profileSaved": "个人资料已更新",
+    "notice.avatarUploaded": "头像已更新",
+    "notice.passwordChanged": "密码已更新",
+    "notice.userStatusUpdated": "用户状态已更新",
+    "notice.requestApproved": "申请已通过",
+    "notice.requestRejected": "申请已拒绝",
+    "notice.inviteCreated": "邀请码已生成，请立即保存显示出的明文邀请码",
+    "notice.serviceCreated": "服务已创建，请立即保存显示出的 clientSecret",
+    "notice.serviceUpdated": "服务状态已更新",
+    "notice.serviceSaved": "服务信息已保存",
+    "notice.secretRotated": "服务密钥已轮换，请立即保存新密钥",
+    "notice.openSourceSaved": "开源感谢项已保存",
+    "notice.openSourceDeleted": "开源感谢项已删除",
+    "notice.feedbackUpdated": "反馈状态已更新",
+    "notice.invalidHomeUrl": "服务入口地址配置无效，请联系管理员",
+
+    "error.authFailed": "认证失败",
+    "error.loadServices": "服务列表加载失败",
+    "error.loadAdmin": "后台数据加载失败",
+    "error.loadApps": "网站列表加载失败",
+    "error.inviteFailed": "邀请码验证失败",
+    "error.requestFailed": "申请提交失败",
+    "error.selectService": "请选择要申请的网站",
+    "error.serviceAuthorizeFailed": "服务授权失败",
+    "error.profileFailed": "个人资料更新失败",
+    "error.avatarFailed": "头像上传失败",
+    "error.passwordFailed": "密码修改失败",
+    "error.feedbackFailed": "反馈提交失败",
+    "error.openSourceFailed": "开源感谢项保存失败",
+    "error.unauthenticated": "未登录",
+    "error.suspended": "账号已停用",
+    "error.invalidPassword": "当前密码错误"
+  },
+  en: {
+    "common.login": "Sign In",
+    "common.logout": "Sign out",
+    "common.save": "Save",
+    "common.edit": "Edit",
+    "common.delete": "Delete",
+    "common.cancel": "Cancel",
+    "common.upload": "Upload",
+    "common.close": "Close",
+    "common.loading": "Loading...",
+    "common.backToApps": "Back to apps",
+    "common.relogin": "Sign in again",
+    "common.submit": "Submit",
+    "common.enabled": "Enabled",
+    "common.disabled": "Disabled",
+    "common.status": "Status",
+    "common.actions": "Actions",
+    "common.user": "User",
+    "common.service": "Service",
+    "common.description": "Description",
+    "common.name": "Name",
+    "common.account": "Account",
+    "common.username": "Username",
+    "common.email": "Email",
+    "common.password": "Password",
+    "common.currentPassword": "Current password",
+    "common.newPassword": "New password",
+    "common.avatar": "Avatar",
+    "common.profile": "Profile",
+    "common.changePassword": "Change password",
+    "common.thirdPartyAccount": "Third-party account",
+    "common.themeLight": "Light",
+    "common.themeDark": "Dark",
+    "common.language": "Language",
+    "common.zh": "中文",
+    "common.en": "EN",
+
+    "login.eyebrow": "Login Portal",
+    "login.managedServicesLabel": "Managed services and websites",
+    "login.loadingServices": "Loading services...",
+    "login.noServices": "No enabled services yet",
+    "login.externalLoginPrefix": "Starting login for external service: ",
+    "login.authModeLabel": "Authentication mode",
+    "login.loginTab": "Sign in",
+    "login.registerTab": "Sign up",
+    "login.namePlaceholder": "Your name",
+    "login.accountPlaceholder": "e.g. admin",
+    "login.passwordPlaceholder": "At least 8 characters",
+    "login.accountLogin": "Account sign in",
+    "login.accountRegister": "Create account",
+    "login.or": "or",
+    "login.linuxdoLogin": "Continue with Linux.do",
+    "login.securityNote": "New users still need an invite code or admin review before they can access services.",
+    "login.unknownService": "Unspecified service",
+    "login.serviceOnline": "Online",
+    "login.serviceOffline": "Offline",
+    "login.openSourceCredits": "Open-source credits",
+    "login.docsList": "Docs",
+    "login.feedback": "Feedback",
+    "login.noDocs": "No docs yet",
+    "login.noCredits": "No credits yet",
+    "login.portalDocs": "Portal integration docs",
+
+    "apps.title": "Websites",
+    "apps.subtitle": "All enabled websites are shown here. Restricted websites show how to request access.",
+    "apps.admin": "Admin",
+    "apps.loading": "Loading services...",
+    "apps.requestAccess": "Request access",
+    "apps.emptyTitle": "No websites yet",
+    "apps.emptyAdmin": "No websites are configured. You can add one in admin.",
+    "apps.emptyUser": "Please try again later.",
+    "apps.canAccess": "Available",
+    "apps.defaultDescription": "Website service",
+    "apps.enter": "Open",
+    "apps.waiting": "Pending review",
+    "apps.pending": "Pending",
+    "apps.needInviteRequest": "Invite/request required",
+    "apps.needInvite": "Invite required",
+    "apps.needRequest": "Request required",
+    "apps.notOpen": "Closed",
+    "apps.getAccess": "Get access",
+    "apps.fillInvite": "Use invite",
+    "apps.cannotAccess": "Unavailable",
+
+    "onboarding.title": "Get Website Access",
+    "onboarding.subtitle": "Use an invite code from an admin, or request access to a specific website.",
+    "onboarding.service": "Website",
+    "onboarding.selectService": "Select a website",
+    "onboarding.currentService": "Current website: {name}, {hint}",
+    "onboarding.inviteTitle": "Invite Code",
+    "onboarding.inviteHelp": "One invite code can grant access to multiple websites.",
+    "onboarding.inviteCode": "Invite code",
+    "onboarding.useInvite": "Use invite",
+    "onboarding.requestTitle": "Submit Request",
+    "onboarding.requestHelp": "Describe why you need access and wait for admin review.",
+    "onboarding.requestMessage": "Request message",
+    "onboarding.requestPlaceholder": "For example: I am on the project team and need access to the demo site.",
+    "onboarding.notOpenTitle": "Requests closed",
+    "onboarding.notOpenHelp": "This website has not enabled invite codes or access requests. Contact an admin.",
+    "onboarding.hintPending": "request pending",
+    "onboarding.hintInviteRequest": "invite or request available",
+    "onboarding.hintInvite": "invite required",
+    "onboarding.hintRequest": "request available",
+    "onboarding.hintNotOpen": "requests closed",
+
+    "pending.badge": "Pending",
+    "pending.title": "Request submitted",
+    "pending.text": "After admin approval, the website will appear as available in your app list.",
+    "pending.refresh": "Refresh app list",
+    "pending.backLogin": "Back to login",
+    "relogin.title": "Sign in again",
+    "relogin.text": "Clearing the current session and returning to the login flow.",
+
+    "profile.title": "Profile",
+    "profile.passwordTitle": "Change Password",
+    "profile.avatarHelp": "JPG, PNG, WEBP, or GIF. Max 2 MB.",
+    "profile.namePlaceholder": "Display name",
+    "profile.usernamePlaceholder": "Username",
+    "profile.currentPasswordPlaceholder": "Required when a password already exists",
+    "profile.newPasswordPlaceholder": "At least 8 characters",
+    "profile.setInitialPassword": "This account has no portal password yet. You can set an initial password.",
+
+    "admin.title": "Admin",
+    "admin.subtitle": "Admin APIs are protected server-side. Only configured admin accounts can access them.",
+    "admin.backApps": "Back to apps",
+    "admin.statUsers": "Users",
+    "admin.statSuspendedUsers": "Suspended users",
+    "admin.statServices": "Websites",
+    "admin.statPendingRequests": "Pending requests",
+    "admin.tabRequests": "Requests",
+    "admin.tabUsers": "Users",
+    "admin.tabInvites": "Invites",
+    "admin.tabServices": "Websites",
+    "admin.tabOpenSource": "Open-source Credits",
+    "admin.tabFeedback": "Feedback",
+    "admin.requestMessage": "Message",
+    "admin.approve": "Approve",
+    "admin.reject": "Reject",
+    "admin.serviceAccess": "Service access",
+    "admin.inviteLabel": "Label",
+    "admin.inviteLabelPlaceholder": "Example: May beta",
+    "admin.maxUses": "Max uses",
+    "admin.expiresAt": "Expires at",
+    "admin.inviteServices": "Granted websites",
+    "admin.inviteServicesPlaceholder": "Select one or more invite-enabled websites",
+    "admin.createInvite": "Create invite",
+    "admin.newInvite": "New invite: {code}",
+    "admin.uses": "Uses",
+    "admin.authorizedServices": "Granted websites",
+    "admin.createdBy": "Created by",
+    "admin.serviceName": "Service name",
+    "admin.serviceNamePlaceholder": "Docs / CRM / Demo",
+    "admin.homeUrl": "Home URL",
+    "admin.healthCheckUrl": "Health check URL",
+    "admin.healthCheckUrlPlaceholder": "https://app.example.com/health",
+    "admin.docsUrl": "Docs URL",
+    "admin.docsUrlPlaceholder": "https://app.example.com/docs",
+    "admin.serviceDescription": "Description",
+    "admin.serviceDescriptionPlaceholder": "Visible to users",
+    "admin.callbackUrls": "Allowed callback URLs, one per line",
+    "admin.allowDirect": "Allow direct access",
+    "admin.allowInvite": "Allow invite codes",
+    "admin.allowRequest": "Allow requests",
+    "admin.createService": "Create service",
+    "admin.newSecret": "New service secret: {secret}",
+    "admin.clientId": "Client ID",
+    "admin.callback": "Callback URLs",
+    "admin.accessModes": "Access modes",
+    "admin.switches": "Switches",
+    "admin.direct": "Direct",
+    "admin.invite": "Invite",
+    "admin.request": "Request",
+    "admin.rotateSecret": "Rotate secret",
+    "admin.editService": "Edit service",
+    "admin.saveService": "Save service",
+    "admin.openSourceName": "Open-source name",
+    "admin.openSourceUrl": "Open-source URL",
+    "admin.sortOrder": "Sort order",
+    "admin.createOpenSource": "Add credit",
+    "admin.feedbackType": "Type",
+    "admin.feedbackContent": "Content",
+    "admin.feedbackContact": "Contact",
+    "admin.feedbackSource": "Source",
+    "admin.feedbackStatusNew": "New",
+    "admin.feedbackStatusReviewing": "Reviewing",
+    "admin.feedbackStatusResolved": "Resolved",
+    "admin.markReviewing": "Mark reviewing",
+    "admin.markResolved": "Mark resolved",
+
+    "feedback.title": "Feedback",
+    "feedback.subtitle": "Tell us about issues or suggestions.",
+    "feedback.type": "Feedback type",
+    "feedback.typeSuggestion": "Suggestion",
+    "feedback.typeComplaint": "Complaint",
+    "feedback.typeBug": "Bug report",
+    "feedback.content": "Content",
+    "feedback.contentPlaceholder": "Describe the issue, suggestion, or expected improvement.",
+    "feedback.contactPlaceholder": "Optional email, WeChat, or phone",
+    "feedback.submit": "Submit feedback",
+    "feedback.success": "Feedback submitted. Thank you.",
+
+    "notice.profileSaved": "Profile updated",
+    "notice.avatarUploaded": "Avatar updated",
+    "notice.passwordChanged": "Password updated",
+    "notice.userStatusUpdated": "User status updated",
+    "notice.requestApproved": "Request approved",
+    "notice.requestRejected": "Request rejected",
+    "notice.inviteCreated": "Invite created. Save the visible code now.",
+    "notice.serviceCreated": "Service created. Save the visible clientSecret now.",
+    "notice.serviceUpdated": "Service updated",
+    "notice.serviceSaved": "Service saved",
+    "notice.secretRotated": "Service secret rotated. Save the new secret now.",
+    "notice.openSourceSaved": "Open-source credit saved",
+    "notice.openSourceDeleted": "Open-source credit deleted",
+    "notice.feedbackUpdated": "Feedback status updated",
+    "notice.invalidHomeUrl": "Invalid service home URL. Contact an admin.",
+
+    "error.authFailed": "Authentication failed",
+    "error.loadServices": "Failed to load services",
+    "error.loadAdmin": "Failed to load admin data",
+    "error.loadApps": "Failed to load website list",
+    "error.inviteFailed": "Invite verification failed",
+    "error.requestFailed": "Request submission failed",
+    "error.selectService": "Select a website first",
+    "error.serviceAuthorizeFailed": "Service authorization failed",
+    "error.profileFailed": "Failed to update profile",
+    "error.avatarFailed": "Avatar upload failed",
+    "error.passwordFailed": "Failed to change password",
+    "error.feedbackFailed": "Failed to submit feedback",
+    "error.openSourceFailed": "Failed to save open-source credit",
+    "error.unauthenticated": "Not signed in",
+    "error.suspended": "Account suspended",
+    "error.invalidPassword": "Current password is incorrect"
+  }
+} as const;
+
+type MessageKey = keyof typeof messages.zh;
+
+const serverErrorMap: Record<string, MessageKey> = {
+  "未登录": "error.unauthenticated",
+  "账号已停用": "error.suspended",
+  "当前密码错误": "error.invalidPassword",
+  "邮箱或密码错误": "error.authFailed",
+  "账号或密码错误": "error.authFailed",
+  "邀请码验证失败": "error.inviteFailed",
+  "申请提交失败": "error.requestFailed",
+  "服务授权失败": "error.serviceAuthorizeFailed"
+};
+
+function interpolate(value: string, params?: Record<string, string | number | null | undefined>) {
+  if (!params) {
+    return value;
+  }
+
+  return value.replace(/\{(\w+)\}/g, (_, key) => String(params[key] ?? ""));
+}
+
+function parseTheme(value: unknown): PortalTheme | null {
+  return value === "light" || value === "dark" ? value : null;
+}
+
+function parseLocale(value: unknown): PortalLocale | null {
+  return value === "zh" || value === "en" ? value : null;
+}
+
+export function usePortalPreferences() {
+  const theme = useState<PortalTheme>("portal-theme", () => "light");
+  const locale = useState<PortalLocale>("portal-locale", () => "zh");
+  const route = useRoute();
+
+  function setTheme(nextTheme: PortalTheme) {
+    theme.value = nextTheme;
+  }
+
+  function toggleTheme() {
+    setTheme(theme.value === "light" ? "dark" : "light");
+  }
+
+  function setLocale(nextLocale: PortalLocale) {
+    locale.value = nextLocale;
+  }
+
+  useHead(() => ({
+    htmlAttrs: {
+      lang: locale.value === "en" ? "en" : "zh-CN",
+      "data-theme": theme.value
+    }
+  }));
+
+  if (import.meta.client) {
+    onMounted(() => {
+      const storedTheme = parseTheme(localStorage.getItem(THEME_KEY));
+      if (storedTheme) {
+        theme.value = storedTheme;
+      }
+
+      const storedLocale = parseLocale(localStorage.getItem(LOCALE_KEY));
+      if (storedLocale) {
+        locale.value = storedLocale;
+      }
+
+      const queryTheme = parseTheme(route.query.theme);
+      if (queryTheme) {
+        theme.value = queryTheme;
+      }
+
+      const queryLocale = parseLocale(route.query.locale);
+      if (queryLocale) {
+        locale.value = queryLocale;
+      }
+
+      localStorage.setItem(THEME_KEY, theme.value);
+      localStorage.setItem(LOCALE_KEY, locale.value);
+    });
+
+    watch(
+      [theme, locale],
+      ([nextTheme, nextLocale]) => {
+        localStorage.setItem(THEME_KEY, nextTheme);
+        localStorage.setItem(LOCALE_KEY, nextLocale);
+      }
+    );
+  }
+
+  return {
+    theme,
+    locale,
+    setTheme,
+    toggleTheme,
+    setLocale
+  };
+}
+
+export function usePortalI18n() {
+  const preferences = usePortalPreferences();
+
+  function t(key: MessageKey, params?: Record<string, string | number | null | undefined>) {
+    return interpolate(messages[preferences.locale.value][key] || messages.zh[key] || key, params);
+  }
+
+  function localizeError(error: any, fallbackKey: MessageKey) {
+    const raw =
+      error?.data?.statusMessage ||
+      error?.data?.message ||
+      error?.message ||
+      "";
+    const mapped = raw ? serverErrorMap[raw] : undefined;
+    return mapped ? t(mapped) : raw || t(fallbackKey);
+  }
+
+  return {
+    ...preferences,
+    t,
+    localizeError
+  };
+}

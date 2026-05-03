@@ -2,34 +2,32 @@ import { createError } from "h3";
 import { createSession } from "~/server/utils/auth";
 import {
   publicUser,
-  registerEmailUser
+  registerAccountUser
 } from "~/server/utils/auth-service";
 
 export default defineEventHandler(async (event) => {
   const body = await readBody<{
-    email?: string;
+    account?: string;
     password?: string;
     name?: string;
-    username?: string;
   }>(event);
 
-  const email = body.email?.trim();
+  const account = body.account?.trim();
   const password = body.password || "";
 
-  if (!email || !password) {
-    throw createError({ statusCode: 400, message: "请输入邮箱和密码" });
+  if (!account || !password) {
+    throw createError({ statusCode: 400, message: "请输入账号和密码" });
   }
 
-  const profile = await registerEmailUser({
-    email,
+  const profile = await registerAccountUser({
+    account,
     password,
-    name: body.name,
-    username: body.username
+    name: body.name
   });
   await createSession(event, profile);
 
   return {
     user: publicUser(profile),
-    next: profile.status === "PENDING" ? "/onboarding" : "/apps"
+    next: "/apps"
   };
 });

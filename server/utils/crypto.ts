@@ -12,9 +12,21 @@ export function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+export function tryNormalizeUrl(value: string) {
+  try {
+    const url = new URL(value);
+    url.hash = "";
+    return url;
+  } catch {
+    return null;
+  }
+}
+
 export function normalizeUrl(value: string) {
-  const url = new URL(value);
-  url.hash = "";
+  const url = tryNormalizeUrl(value);
+  if (!url) {
+    throw new TypeError(`Invalid URL: ${value}`);
+  }
   return url;
 }
 

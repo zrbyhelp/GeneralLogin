@@ -5,10 +5,10 @@ import { prisma } from "~/server/utils/prisma";
 export default defineEventHandler(async (event) => {
   await requireAdminUser(event);
 
-  const [users, pendingUsers, services, pendingRequests, invites] =
+  const [users, suspendedUsers, services, pendingRequests, invites] =
     await Promise.all([
       prisma.userProfile.count(),
-      prisma.userProfile.count({ where: { status: UserStatus.PENDING } }),
+      prisma.userProfile.count({ where: { status: UserStatus.SUSPENDED } }),
       prisma.serviceApp.count(),
       prisma.accessRequest.count({
         where: { status: AccessRequestStatus.PENDING }
@@ -16,5 +16,5 @@ export default defineEventHandler(async (event) => {
       prisma.inviteCode.count({ where: { enabled: true } })
     ]);
 
-  return { users, pendingUsers, services, pendingRequests, invites };
+  return { users, suspendedUsers, services, pendingRequests, invites };
 });

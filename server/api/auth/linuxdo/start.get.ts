@@ -13,6 +13,8 @@ export default defineEventHandler(async (event) => {
   const clientId = typeof query.client_id === "string" ? query.client_id : "";
   const callbackUrl = typeof query.callback === "string" ? query.callback : "";
   const state = typeof query.state === "string" ? query.state : "";
+  const theme = typeof query.theme === "string" ? query.theme : "";
+  const locale = typeof query.locale === "string" ? query.locale : "";
   const loginHint = typeof query.login_hint === "string" ? query.login_hint : "";
 
   const portalState = generateToken(24);
@@ -23,7 +25,9 @@ export default defineEventHandler(async (event) => {
       oauthState: portalState,
       clientId,
       callbackUrl,
-      state
+      state,
+      theme,
+      locale
     }),
     {
       httpOnly: true,

@@ -1,5 +1,6 @@
 import { createError } from "h3";
 import { requireAdminUser } from "~/server/utils/auth";
+import { tryNormalizeUrl } from "~/server/utils/crypto";
 import { prisma } from "~/server/utils/prisma";
 import { writeAuditLog } from "~/server/utils/audit";
 
@@ -14,6 +15,12 @@ function cleanCallbackUrls(value: unknown) {
     .filter(Boolean);
 }
 
+function validateAbsoluteUrl(value: string, label: string) {
+  if (!tryNormalizeUrl(value)) {
+    throw createError({ statusCode: 400, statusMessage: `${label}格式无效` });
+  }
+}
+
 export default defineEventHandler(async (event) => {
   const admin = await requireAdminUser(event);
   const id = getRouterParam(event, "id");
@@ -22,8 +29,13 @@ export default defineEventHandler(async (event) => {
     slug?: string;
     description?: string;
     homeUrl?: string;
+    healthCheckUrl?: string;
+    docsUrl?: string;
     callbackUrls?: string[];
     enabled?: boolean;
+    allowDirectAccess?: boolean;
+    allowInviteAccess?: boolean;
+    allowAccessRequest?: boolean;
   }>(event);
 
   if (!id) {
@@ -31,6 +43,27 @@ export default defineEventHandler(async (event) => {
   }
 
   const callbackUrls = cleanCallbackUrls(body.callbackUrls);
+  const homeUrl = body.homeUrl?.trim();
+  const healthCheckUrl = typeof body.healthCheckUrl === "string"
+    ? body.healthCheckUrl.trim()
+    : undefined;
+  const docsUrl = typeof body.docsUrl === "string" ? body.docsUrl.trim() : undefined;
+  if (homeUrl) {
+    validateAbsoluteUrl(homeUrl, "入口地址");
+  }
+  if (healthCheckUrl) {
+    validateAbsoluteUrl(healthCheckUrl, "健康检查地址");
+  }
+  if (docsUrl) {
+    validateAbsoluteUrl(docsUrl, "文档地址");
+  }
+  if (callbackUrls) {
+    if (!callbackUrls.length) {
+      throw createError({ statusCode: 400, statusMessage: "回调地址不能为空" });
+    }
+    callbackUrls.forEach((url) => validateAbsoluteUrl(url, "回调地址"));
+  }
+
   const service = await prisma.serviceApp.update({
     where: { id },
     data: {
@@ -38,9 +71,24 @@ export default defineEventHandler(async (event) => {
       slug: body.slug?.trim().toLowerCase() || undefined,
       description:
         typeof body.description === "string" ? body.description.trim() : undefined,
-      homeUrl: body.homeUrl?.trim() || undefined,
+      homeUrl: homeUrl || undefined,
+      healthCheckUrl:
+        typeof healthCheckUrl === "string" ? healthCheckUrl || null : undefined,
+      docsUrl: typeof docsUrl === "string" ? docsUrl || null : undefined,
       callbackUrls,
-      enabled: typeof body.enabled === "boolean" ? body.enabled : undefined
+      enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
+      allowDirectAccess:
+        typeof body.allowDirectAccess === "boolean"
+          ? body.allowDirectAccess
+          : undefined,
+      allowInviteAccess:
+        typeof body.allowInviteAccess === "boolean"
+          ? body.allowInviteAccess
+          : undefined,
+      allowAccessRequest:
+        typeof body.allowAccessRequest === "boolean"
+          ? body.allowAccessRequest
+          : undefined
     }
   });
 
@@ -49,7 +97,12 @@ export default defineEventHandler(async (event) => {
     action: "admin.service.updated",
     targetType: "ServiceApp",
     targetId: service.id,
-    metadata: { enabled: service.enabled }
+    metadata: {
+      enabled: service.enabled,
+      allowDirectAccess: service.allowDirectAccess,
+      allowInviteAccess: service.allowInviteAccess,
+      allowAccessRequest: service.allowAccessRequest
+    }
   });
 
   return { service };

@@ -2,9 +2,9 @@
   <div class="page-panel">
     <div class="panel-header">
       <div>
-        <h1 class="panel-title">加入申请</h1>
+        <h1 class="panel-title">{{ t("onboarding.title") }}</h1>
         <p class="panel-subtitle">
-          新用户需要填写邀请码，或提交申请等待管理员审核。
+          {{ t("onboarding.subtitle") }}
         </p>
       </div>
       <ClientOnly>
@@ -12,11 +12,28 @@
       </ClientOnly>
     </div>
 
+    <section class="panel-card panel-card--strong onboarding-service">
+      <label class="field-label" for="service-select">{{ t("onboarding.service") }}</label>
+      <select id="service-select" v-model="selectedServiceId" class="field-input">
+        <option value="">{{ t("onboarding.selectService") }}</option>
+        <option
+          v-for="service in accessCandidates"
+          :key="service.id"
+          :value="service.id"
+        >
+          {{ service.name }}
+        </option>
+      </select>
+      <p v-if="selectedService" class="muted">
+        {{ t("onboarding.currentService", { name: selectedService.name, hint: accessHint(selectedService) }) }}
+      </p>
+    </section>
+
     <div class="panel-grid panel-grid--two">
-      <section class="panel-card panel-card--strong onboarding-card">
-        <h2>邀请码加入</h2>
-        <p class="muted">管理员发放的邀请码可以直接完成用户准入。</p>
-        <label class="field-label" for="invite-code">邀请码</label>
+      <section v-if="canUseInvite" class="panel-card panel-card--strong onboarding-card">
+        <h2>{{ t("onboarding.inviteTitle") }}</h2>
+        <p class="muted">{{ t("onboarding.inviteHelp") }}</p>
+        <label class="field-label" for="invite-code">{{ t("onboarding.inviteCode") }}</label>
         <input
           id="invite-code"
           v-model="inviteCode"
@@ -25,23 +42,29 @@
           placeholder="ZR-..."
         >
         <button class="primary-btn" type="button" :disabled="submitting" @click="submitInvite">
-          使用邀请码
+          {{ t("onboarding.useInvite") }}
         </button>
       </section>
 
-      <section class="panel-card panel-card--strong onboarding-card">
-        <h2>提交申请</h2>
-        <p class="muted">没有邀请码时，说明用途和需要访问的服务。</p>
-        <label class="field-label" for="request-message">申请说明</label>
+      <section v-if="canRequestAccess" class="panel-card panel-card--strong onboarding-card">
+        <h2>{{ t("onboarding.requestTitle") }}</h2>
+        <p class="muted">{{ t("onboarding.requestHelp") }}</p>
+        <label class="field-label" for="request-message">{{ t("onboarding.requestMessage") }}</label>
         <textarea
           id="request-message"
           v-model="message"
           class="field-textarea"
-          placeholder="例如：我是某某项目成员，需要访问内部演示站。"
+          :placeholder="t('onboarding.requestPlaceholder')"
         />
         <button class="ghost-btn" type="button" :disabled="submitting" @click="submitRequest">
-          提交申请
+          {{ t("common.submit") }}
         </button>
+      </section>
+
+      <section v-if="!canUseInvite && !canRequestAccess" class="panel-card panel-card--strong onboarding-card">
+        <h2>{{ t("onboarding.notOpenTitle") }}</h2>
+        <p class="muted">{{ t("onboarding.notOpenHelp") }}</p>
+        <NuxtLink class="ghost-btn" to="/apps">{{ t("common.backToApps") }}</NuxtLink>
       </section>
     </div>
 
@@ -50,25 +73,85 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
+
+type AppItem = {
+  id: string;
+  clientId: string;
+  name: string;
+  canAccess: boolean;
+  requiresInvite: boolean;
+  requiresRequest: boolean;
+  hasPendingRequest: boolean;
+};
 
 const route = useRoute();
+const { t, localizeError, theme, locale } = usePortalI18n();
 const inviteCode = ref("");
 const message = ref("");
 const notice = ref("");
 const submitting = ref(false);
+const apps = ref<AppItem[]>([]);
+const selectedServiceId = ref(String(route.query.service_id || ""));
+
+const selectedService = computed(() =>
+  apps.value.find((service) => service.id === selectedServiceId.value)
+);
+const accessCandidates = computed(() =>
+  apps.value.filter(
+    (service) =>
+      !service.canAccess &&
+      !service.hasPendingRequest &&
+      (service.requiresInvite || service.requiresRequest)
+  )
+);
+const canUseInvite = computed(() =>
+  selectedService.value ? selectedService.value.requiresInvite : apps.value.some((service) => service.requiresInvite)
+);
+const canRequestAccess = computed(() =>
+  Boolean(selectedService.value?.requiresRequest && !selectedService.value.hasPendingRequest)
+);
+
+function accessHint(service: AppItem) {
+  if (service.hasPendingRequest) return t("onboarding.hintPending");
+  if (service.requiresInvite && service.requiresRequest) return t("onboarding.hintInviteRequest");
+  if (service.requiresInvite) return t("onboarding.hintInvite");
+  if (service.requiresRequest) return t("onboarding.hintRequest");
+  return t("onboarding.hintNotOpen");
+}
 
 function nextLoginUrl() {
   const params = new URLSearchParams();
+  let hasExternalFlow = false;
   for (const key of ["client_id", "callback", "state"]) {
     const value = route.query[key];
     if (value) {
       params.set(key, String(value));
+      hasExternalFlow = true;
     }
   }
+  if (!hasExternalFlow) {
+    return "/apps";
+  }
+  params.set("theme", theme.value);
+  params.set("locale", locale.value);
 
-  const query = params.toString();
-  return query ? `/login?${query}` : "/apps";
+  return `/login?${params}`;
+}
+
+async function loadApps() {
+  try {
+    const result = await $fetch<{ apps: AppItem[] }>("/api/portal/apps");
+    apps.value = result.apps;
+
+    const clientId = String(route.query.client_id || "");
+    if (!selectedServiceId.value && clientId) {
+      selectedServiceId.value =
+        apps.value.find((service) => service.clientId === clientId)?.id || "";
+    }
+  } catch (error: any) {
+    notice.value = localizeError(error, "error.loadApps");
+  }
 }
 
 async function submitInvite() {
@@ -79,19 +162,23 @@ async function submitInvite() {
     await $fetch("/api/portal/onboarding", {
       method: "POST",
       body: {
-        inviteCode: inviteCode.value,
-        clientId: route.query.client_id || undefined
+        inviteCode: inviteCode.value
       }
     });
     await navigateTo(nextLoginUrl());
   } catch (error: any) {
-    notice.value = error?.data?.statusMessage || error?.message || "邀请码验证失败";
+    notice.value = localizeError(error, "error.inviteFailed");
   } finally {
     submitting.value = false;
   }
 }
 
 async function submitRequest() {
+  if (!selectedServiceId.value) {
+    notice.value = t("error.selectService");
+    return;
+  }
+
   submitting.value = true;
   notice.value = "";
 
@@ -100,19 +187,35 @@ async function submitRequest() {
       method: "POST",
       body: {
         message: message.value,
-        clientId: route.query.client_id || undefined
+        serviceId: selectedServiceId.value
       }
     });
-    await navigateTo("/pending");
+    const params = new URLSearchParams({
+      service: selectedService.value?.name || "",
+      theme: theme.value,
+      locale: locale.value
+    });
+    await navigateTo(`/pending?${params}`);
   } catch (error: any) {
-    notice.value = error?.data?.statusMessage || error?.message || "申请提交失败";
+    notice.value = localizeError(error, "error.requestFailed");
   } finally {
     submitting.value = false;
   }
 }
+
+onMounted(loadApps);
 </script>
 
 <style scoped>
+.onboarding-service {
+  margin-bottom: 16px;
+  padding: 20px;
+}
+
+.onboarding-service .muted {
+  margin: 10px 0 0;
+}
+
 .onboarding-card {
   padding: 24px;
 }

@@ -52,6 +52,8 @@ export default defineEventHandler(async (event) => {
 
   const clientId = parsed.clientId || "";
   const callbackUrl = parsed.callbackUrl || "";
+  const theme = parsed.theme === "dark" || parsed.theme === "light" ? parsed.theme : "";
+  const locale = parsed.locale === "en" || parsed.locale === "zh" ? parsed.locale : "";
   if (clientId && callbackUrl) {
     const service = await prisma.serviceApp.findFirst({
       where: {
@@ -70,26 +72,43 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 403, message: "账号已停用" });
     }
 
-    if (user.status !== UserStatus.APPROVED && !user.isAdminSnapshot) {
+    try {
+      await canUseService(user, service);
+    } catch {
       const params = new URLSearchParams({
         client_id: service.clientId,
+        service_id: service.id,
         callback: callbackUrl
       });
       if (parsed.state) {
         params.set("state", parsed.state);
       }
-      return sendRedirect(event, `/onboarding?${params}`, 302);
-    }
+      if (theme) {
+        params.set("theme", theme);
+      }
+      if (locale) {
+        params.set("locale", locale);
+      }
 
-    try {
-      await canUseService(user, service);
-    } catch {
+      if (service.allowInviteAccess) {
+        return sendRedirect(event, `/onboarding?${params}`, 302);
+      }
+
+      if (!service.allowAccessRequest) {
+        throw createError({ statusCode: 403, message: "此服务未开放访问申请" });
+      }
+
       await createOrReuseAccessRequest({ profile: user, service });
-      return sendRedirect(
-        event,
-        `/pending?service=${encodeURIComponent(service.slug)}`,
-        302
-      );
+      const pendingParams = new URLSearchParams({
+        service: service.slug
+      });
+      if (theme) {
+        pendingParams.set("theme", theme);
+      }
+      if (locale) {
+        pendingParams.set("locale", locale);
+      }
+      return sendRedirect(event, `/pending?${pendingParams}`, 302);
     }
 
     const { rawCode } = await createServiceAuthCode({
@@ -103,6 +122,12 @@ export default defineEventHandler(async (event) => {
     redirect.searchParams.set("code", rawCode);
     if (parsed.state) {
       redirect.searchParams.set("state", parsed.state);
+    }
+    if (theme) {
+      redirect.searchParams.set("theme", theme);
+    }
+    if (locale) {
+      redirect.searchParams.set("locale", locale);
     }
     return sendRedirect(event, redirect.toString(), 302);
   }
