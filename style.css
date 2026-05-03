@@ -1,6 +1,6 @@
 :root {
-  color-scheme: dark;
-  background: #070709;
+  color-scheme: light;
+  background: transparent;
 }
 
 * {
@@ -13,10 +13,7 @@ body {
   height: 100%;
   margin: 0;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 16% 18%, rgba(255, 70, 102, 0.13), transparent 31%),
-    radial-gradient(circle at 82% 64%, rgba(34, 213, 193, 0.12), transparent 34%),
-    linear-gradient(135deg, #050507 0%, #101116 52%, #060608 100%);
+  background: transparent;
 }
 
 body {
@@ -29,4 +26,76 @@ canvas {
   height: 100vh;
   cursor: none;
   touch-action: none;
+}
+
+#controls {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+#palette-picker {
+  display: flex;
+  gap: 8px;
+}
+
+#controls button {
+  border: 1px solid rgba(0, 0, 0, 0.24);
+  outline: none;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.22) inset,
+    0 2px 10px rgba(0, 0, 0, 0.22);
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  padding: 0;
+  background: linear-gradient(135deg, #ff6680, #ffd76b);
+  cursor: pointer;
+}
+
+.swatch[data-theme="1"] {
+  background: linear-gradient(135deg, #34e8d8, #7ca2ff);
+}
+
+.swatch[data-theme="2"] {
+  background: linear-gradient(135deg, #ff6f57, #ffd18b);
+}
+
+.swatch[data-theme="3"] {
+  background: linear-gradient(135deg, #bb65ff, #54ffd9);
+}
+
+.swatch[data-theme="4"] {
+  background: linear-gradient(135deg, #78ff9c, #3fc0ff);
+}
+
+.swatch.active {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.84),
+    0 0 0 3px rgba(0, 0, 0, 0.28),
+    0 0 12px rgba(255, 255, 255, 0.12);
+}
+
+#jump-button {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #09090b;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#jump-button:active,
+.swatch:active {
+  transform: translateY(1px);
 }

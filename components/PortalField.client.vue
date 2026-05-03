@@ -1,11 +1,66 @@
-(() => {
-  const canvas = document.getElementById("triangle-field");
-  const themeButtons = Array.from(document.querySelectorAll("[data-theme]"));
-  const jumpButton = document.getElementById("jump-button");
+<template>
+  <div class="portal-field" aria-hidden="true">
+    <canvas ref="canvasRef" class="portal-field__canvas" aria-hidden="true"></canvas>
+  </div>
+  <div class="portal-field__controls" aria-label="Color controls">
+    <div class="portal-field__palette" role="tablist" aria-label="Palette chooser">
+      <button
+        v-for="(theme, index) in themeCount"
+        :key="index"
+        class="portal-field__swatch"
+        :class="{ active: themeIndex === index }"
+        type="button"
+        :data-theme="index"
+        :aria-label="`Palette ${index + 1}`"
+        @click.stop="applyTheme(index)"
+      />
+    </div>
+    <button class="portal-field__jump" type="button" aria-label="Jump" @click.stop="startJumpTransition">
+      ↗
+    </button>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+
+const canvasRef = ref<HTMLCanvasElement | null>(null);
+const themeCount = 5;
+const themeIndex = ref(0);
+let cleanup: (() => void) | undefined;
+let applyThemeImpl: (index: number) => void = () => {};
+let startJumpTransitionImpl: () => void = () => {};
+
+function applyTheme(index: number) {
+  applyThemeImpl(index);
+}
+
+function startJumpTransition() {
+  startJumpTransitionImpl();
+}
+
+onMounted(async () => {
+  await nextTick();
+  let canvas = canvasRef.value;
+  if (!canvas) {
+    await new Promise(requestAnimationFrame);
+    canvas = canvasRef.value;
+  }
+
+  if (!canvas) {
+    return;
+  }
+
   const ctx = canvas.getContext("2d", {
     alpha: true,
     desynchronized: true
   });
+
+  if (!ctx) {
+    return;
+  }
+
+  themeIndex.value = Math.floor(Math.random() * themeCount);
 
   const TAU = Math.PI * 2;
   const BASE_CELL = 60;
@@ -69,25 +124,22 @@
       ]
     }
   ];
-  const JUMP_INTERVAL = 5;
-  const INTRO_INTERVAL = 8;
+
   let width = 0;
   let height = 0;
   let dpr = 1;
   let cellSize = BASE_CELL;
   let cols = 0;
   let rows = 0;
-  let tiles = [];
-  let staticCanvas = document.createElement("canvas");
-  let staticCtx = staticCanvas.getContext("2d", { alpha: true });
+  let tiles: any[] = [];
+  const staticCanvas = document.createElement("canvas");
+  const staticCtx = staticCanvas.getContext("2d", { alpha: true });
+  const activeTiles = new Set<any>();
   let rafId = 0;
   let lastFrame = 0;
-  let themeIndex = 0;
-  let jumpState = null;
+  let jumpState: any = null;
   let introPending = true;
-  let introState = null;
-
-  const activeTiles = new Set();
+  let introState: any = null;
 
   const pointer = {
     active: false,
@@ -102,17 +154,26 @@
     glow: 0
   };
 
-  const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(max, value));
+  const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
-  function addQuad(tris, x, y, w, h, tone = 0) {
+  function addQuad(tris: any[], x: number, y: number, w: number, h: number, tone = 0) {
     tris.push(
       { p: [x, y, x + w, y, x, y + h], tone },
       { p: [x + w, y, x + w, y + h, x, y + h], tone: tone + 0.12 }
     );
   }
 
-  function addSlash(tris, x1, y1, x2, y2, thickness, tone = 0) {
+  function addSlash(
+    tris: any[],
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    thickness: number,
+    tone = 0
+  ) {
     const dx = x2 - x1;
     const dy = y2 - y1;
     const length = Math.hypot(dx, dy) || 1;
@@ -120,38 +181,21 @@
     const ny = (dx / length) * thickness * 0.5;
 
     tris.push(
+      { p: [x1 + nx, y1 + ny, x2 + nx, y2 + ny, x1 - nx, y1 - ny], tone },
       {
-        p: [
-          x1 + nx,
-          y1 + ny,
-          x2 + nx,
-          y2 + ny,
-          x1 - nx,
-          y1 - ny
-        ],
-        tone
-      },
-      {
-        p: [
-          x2 + nx,
-          y2 + ny,
-          x2 - nx,
-          y2 - ny,
-          x1 - nx,
-          y1 - ny
-        ],
+        p: [x2 + nx, y2 + ny, x2 - nx, y2 - ny, x1 - nx, y1 - ny],
         tone: tone + 0.12
       }
     );
   }
 
   function makeTemplates() {
-    const z = [];
+    const z: any[] = [];
     addQuad(z, 0.04, 0.08, 0.92, 0.18, 0.08);
     addSlash(z, 0.86, 0.17, 0.14, 0.83, 0.2, 0.28);
     addQuad(z, 0.04, 0.74, 0.92, 0.18, -0.02);
 
-    const r = [];
+    const r: any[] = [];
     addQuad(r, 0.05, 0.08, 0.19, 0.84, -0.04);
     addQuad(r, 0.2, 0.08, 0.54, 0.17, 0.14);
     addQuad(r, 0.2, 0.43, 0.52, 0.16, 0.04);
@@ -163,12 +207,12 @@
 
   const templates = makeTemplates();
 
-  function hash2(x, y) {
+  function hash2(x: number, y: number) {
     const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
     return n - Math.floor(n);
   }
 
-  function createTile(col, row) {
+  function createTile(col: number, row: number) {
     const x = col * cellSize;
     const y = row * cellSize;
     const char = col % 2 === 0 ? "Z" : "R";
@@ -200,88 +244,16 @@
     };
   }
 
-  function resize() {
-    width = window.innerWidth;
-    height = window.innerHeight;
-    dpr = Math.min(window.devicePixelRatio || 1, width * height > 2500000 ? 1.2 : 1.35);
-
-    canvas.width = Math.ceil(width * dpr);
-    canvas.height = Math.ceil(height * dpr);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    staticCanvas.width = canvas.width;
-    staticCanvas.height = canvas.height;
-    staticCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-    cellSize = Math.max(
-      BASE_CELL,
-      Math.ceil(Math.max(width / MAX_COLS, height / MAX_ROWS))
-    );
-    cols = Math.ceil(width / cellSize) + 1;
-    rows = Math.ceil(height / cellSize) + 1;
-
-    tiles = [];
-    activeTiles.clear();
-    for (let row = 0; row < rows; row += 1) {
-      for (let col = 0; col < cols; col += 1) {
-        tiles.push(createTile(col, row));
-      }
-    }
-
-    applyTheme(themeIndex, false);
-    renderStaticLayer();
-    drawFrame();
-  }
-
-  function applyTheme(nextThemeIndex, shouldRender = true) {
-    themeIndex = (nextThemeIndex + THEME_PRESETS.length) % THEME_PRESETS.length;
-    const theme = THEME_PRESETS[themeIndex];
-
-    for (const tile of tiles) {
-      const paletteIndex = Math.floor(tile.paletteSeed * theme.palettes.length) % theme.palettes.length;
-      const palette = theme.palettes[paletteIndex];
-      tile.paletteA = palette[0];
-      tile.paletteB = palette[1];
-      tile.brightness = theme.brightnessBase + tile.brightnessSeed * theme.brightnessRange;
-    }
-
-    for (const button of themeButtons) {
-      button.classList.toggle("active", Number(button.dataset.theme) === themeIndex);
-    }
-
-    if (shouldRender) {
-      renderStaticLayer();
-      drawFrame();
-    }
-  }
-
-  function renderStaticLayer() {
-    staticCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    staticCtx.clearRect(0, 0, width, height);
-
-    for (const tile of tiles) {
-      if (!tile.hidden) {
-        drawTile(staticCtx, tile, 0, false);
-      }
-    }
-  }
-
-  function clearTile(context, tile) {
-    context.clearRect(tile.x - 1, tile.y - 1, cellSize + 2, cellSize + 2);
-  }
-
-  function colorFor(tile, triangle, rotation, back, index) {
+  function colorFor(tile: any, triangle: any, rotation: number, back: boolean, index: number) {
     const a = tile.paletteA;
     const b = tile.paletteB;
-    const facetSeed = hash2(tile.triangleSeed * 23.7 + index * 5.1, tile.phase * 0.31 + index * 9.4);
+    const facetSeed = hash2(
+      tile.triangleSeed * 23.7 + index * 5.1,
+      tile.phase * 0.31 + index * 9.4
+    );
     const hueSeed = hash2(tile.col * 4.6 + index * 1.7, tile.row * 6.2 + index * 2.9);
     const mix = clamp(
-      0.45 +
-        triangle.tone +
-        (facetSeed - 0.5) * 0.16 +
-        Math.abs(Math.sin(rotation)) * 0.18,
+      0.45 + triangle.tone + (facetSeed - 0.5) * 0.16 + Math.abs(Math.sin(rotation)) * 0.18,
       0,
       1
     );
@@ -298,7 +270,7 @@
     return `rgb(${clamp(r, 0, 255)}, ${clamp(g, 0, 255)}, ${clamp(blue, 0, 255)})`;
   }
 
-  function project(tile, px, py, rotation) {
+  function project(tile: any, px: number, py: number, rotation: number) {
     const size = cellSize * 0.94;
     const originX = tile.x + cellSize * 0.03;
     const originY = tile.y + cellSize * 0.03;
@@ -318,15 +290,12 @@
     };
   }
 
-  function drawTile(context, tile, rotation, active) {
-    const template = templates[tile.char];
+  function drawTile(context: CanvasRenderingContext2D, tile: any, rotation: number, active: boolean) {
+    const template = templates[tile.char as "Z" | "R"];
     const back = Math.cos(rotation) < 0;
-    const flipAmount = Math.abs(Math.sin(rotation));
     let transitionAlpha = 1;
 
-    if (tile.transition === "hide") {
-      transitionAlpha = clamp(1 - Math.abs(rotation) / TRANSITION_ROTATION, 0, 1);
-    } else if (tile.transition === "show") {
+    if (tile.transition === "hide" || tile.transition === "show") {
       transitionAlpha = clamp(1 - Math.abs(rotation) / TRANSITION_ROTATION, 0, 1);
     }
 
@@ -356,33 +325,89 @@
     context.restore();
   }
 
-  function activateTile(tile, target, velocity) {
-    if (tile.hidden || tile.transition) {
+  function clearTile(context: CanvasRenderingContext2D, tile: any) {
+    context.clearRect(tile.x - 1, tile.y - 1, cellSize + 2, cellSize + 2);
+  }
+
+  function setTheme(nextThemeIndex: number, shouldRender = true) {
+    themeIndex.value = (nextThemeIndex + THEME_PRESETS.length) % THEME_PRESETS.length;
+    const theme = THEME_PRESETS[themeIndex.value];
+
+    for (const tile of tiles) {
+      const paletteIndex = Math.floor(tile.paletteSeed * theme.palettes.length) % theme.palettes.length;
+      const palette = theme.palettes[paletteIndex];
+      tile.paletteA = palette[0];
+      tile.paletteB = palette[1];
+      tile.brightness = theme.brightnessBase + tile.brightnessSeed * theme.brightnessRange;
+    }
+
+    if (shouldRender) {
+      renderStaticLayer();
+      drawFrame();
+    }
+  }
+
+  function renderStaticLayer() {
+    if (!staticCtx) {
       return;
     }
 
-    tile.target = Math.abs(target) > Math.abs(tile.target) ? target : tile.target;
-    tile.velocity += velocity;
-    activeTiles.add(tile);
+    staticCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    staticCtx.clearRect(0, 0, width, height);
+
+    for (const tile of tiles) {
+      if (!tile.hidden) {
+        drawTile(staticCtx, tile, 0, false);
+      }
+    }
+  }
+
+  function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, width * height > 2500000 ? 1.2 : 1.35);
+
+    canvas.width = Math.ceil(width * dpr);
+    canvas.height = Math.ceil(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    staticCanvas.width = canvas.width;
+    staticCanvas.height = canvas.height;
+    staticCtx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    cellSize = Math.max(BASE_CELL, Math.ceil(Math.max(width / MAX_COLS, height / MAX_ROWS)));
+    cols = Math.ceil(width / cellSize) + 1;
+    rows = Math.ceil(height / cellSize) + 1;
+
+    tiles = [];
+    activeTiles.clear();
+    for (let row = 0; row < rows; row += 1) {
+      for (let col = 0; col < cols; col += 1) {
+        tiles.push(createTile(col, row));
+      }
+    }
+
+    setTheme(themeIndex.value, false);
+    renderStaticLayer();
+    drawFrame();
   }
 
   function visibleTileCount() {
     let count = 0;
-
     for (const tile of tiles) {
       if (!tile.hidden) {
         count += 1;
       }
     }
-
     return count;
   }
 
-  function startTileExit(tile) {
+  function startTileExit(tile: any) {
     if (tile.hidden) {
       return;
     }
-
     tile.transition = "hide";
     tile.rotation = 0;
     tile.velocity = 0;
@@ -391,11 +416,10 @@
     activeTiles.add(tile);
   }
 
-  function startTileEnter(tile) {
+  function startTileEnter(tile: any) {
     if (!tile.hidden) {
       return;
     }
-
     tile.hidden = false;
     tile.transition = "show";
     tile.rotation = TRANSITION_ROTATION;
@@ -405,25 +429,26 @@
     activeTiles.add(tile);
   }
 
-  function buildJumpQueue(mode) {
+  function buildJumpQueue(mode: "hide" | "show") {
     const queue = tiles.filter((tile) => (mode === "hide" ? !tile.hidden : tile.hidden));
 
     queue.sort((a, b) => {
       if (mode === "hide") {
         return b.row + b.col - (a.row + a.col) || b.col - a.col;
       }
-
       return a.row + a.col - (b.row + b.col) || a.col - b.col;
     });
 
     return queue;
   }
 
-  function startJumpTransition() {
+  function runJumpTransition() {
     if (jumpState) {
       return;
     }
 
+    introState = null;
+    introPending = false;
     pointer.active = false;
     pointer.glow = 0;
 
@@ -443,7 +468,7 @@
       mode,
       queue,
       nextAt: performance.now(),
-      interval: JUMP_INTERVAL
+      interval: 5
     };
 
     requestTick();
@@ -464,32 +489,30 @@
       tile.target = 0;
     }
 
-    staticCtx.clearRect(0, 0, width, height);
+    staticCtx?.clearRect(0, 0, width, height);
     activeTiles.clear();
 
     introState = {
       queue,
       nextAt: performance.now() + 160,
-      interval: INTRO_INTERVAL
+      interval: 8
     };
 
     requestTick();
   }
 
-  function processJumpQueue(now) {
+  function processJumpQueue(now: number) {
     if (!jumpState) {
       return;
     }
 
     while (jumpState.queue.length && now >= jumpState.nextAt) {
       const tile = jumpState.queue.shift();
-
       if (jumpState.mode === "hide") {
         startTileExit(tile);
       } else {
         startTileEnter(tile);
       }
-
       jumpState.nextAt += jumpState.interval;
     }
 
@@ -498,7 +521,7 @@
     }
   }
 
-  function processIntroQueue(now) {
+  function processIntroQueue(now: number) {
     if (!introState) {
       return;
     }
@@ -515,7 +538,17 @@
     }
   }
 
-  function disturbAt(x, y, vx, vy, speed) {
+  function activateTile(tile: any, target: number, velocity: number) {
+    if (tile.hidden || tile.transition) {
+      return;
+    }
+
+    tile.target = Math.abs(target) > Math.abs(tile.target) ? target : tile.target;
+    tile.velocity += velocity;
+    activeTiles.add(tile);
+  }
+
+  function disturbAt(x: number, y: number, vx: number, vy: number, speed: number) {
     if (jumpState) {
       return;
     }
@@ -554,7 +587,7 @@
     requestTick();
   }
 
-  function pointerMove(event) {
+  function pointerMove(event: PointerEvent) {
     if (jumpState) {
       return;
     }
@@ -600,15 +633,12 @@
     pointer.glow = 0;
   }
 
-  function update(dt, now) {
+  function update(dt: number, now: number) {
     processIntroQueue(now);
     processJumpQueue(now);
     pointer.glow *= Math.pow(0.08, dt);
 
     for (const tile of Array.from(activeTiles)) {
-      // The mouse writes a temporary flip target directly into nearby cells.
-      // A damped spring chases that target, then both target and velocity decay
-      // so the Z/R block visibly flips and settles back to the cached front.
       if (!tile.transition) {
         tile.target *= Math.pow(0.018, dt);
       }
@@ -619,7 +649,6 @@
 
       if (tile.transition === "hide") {
         const alpha = clamp(1 - Math.abs(tile.rotation) / TRANSITION_ROTATION, 0, 1);
-
         if (alpha < 0.045 || Math.abs(tile.rotation) > TRANSITION_ROTATION * 0.98) {
           tile.hidden = true;
           tile.transition = "";
@@ -627,21 +656,20 @@
           tile.velocity = 0;
           tile.target = 0;
           activeTiles.delete(tile);
-          clearTile(staticCtx, tile);
+          clearTile(staticCtx!, tile);
           continue;
         }
       }
 
       if (tile.transition === "show") {
         const alpha = clamp(1 - Math.abs(tile.rotation) / TRANSITION_ROTATION, 0, 1);
-
         if (alpha > 0.985 && Math.abs(tile.velocity) < 0.12) {
           tile.transition = "";
           tile.rotation = 0;
           tile.velocity = 0;
           tile.target = 0;
           activeTiles.delete(tile);
-          drawTile(staticCtx, tile, 0, false);
+          drawTile(staticCtx!, tile, 0, false);
           continue;
         }
       }
@@ -695,7 +723,7 @@
     }
   }
 
-  function tick(now) {
+  function tick(now: number) {
     rafId = 0;
 
     if (!lastFrame) {
@@ -713,22 +741,128 @@
     }
   }
 
-  window.addEventListener("resize", resize);
-  window.addEventListener("pointermove", pointerMove, { passive: true });
-  window.addEventListener("pointerleave", pointerLeave);
-  window.addEventListener("blur", pointerLeave);
-  for (const button of themeButtons) {
-    button.addEventListener("click", () => {
-      applyTheme(Number(button.dataset.theme));
-    });
-  }
-  jumpButton.addEventListener("click", startJumpTransition);
-  window.addEventListener("beforeunload", () => {
-    if (rafId) {
-      cancelAnimationFrame(rafId);
-    }
-  });
+  const onResize = () => resize();
+  const onPointerMove = (event: PointerEvent) => pointerMove(event);
+  const onPointerLeave = () => pointerLeave();
+
+  applyThemeImpl = (index: number) => setTheme(index);
+  startJumpTransitionImpl = runJumpTransition;
+
+  window.addEventListener("resize", onResize);
+  window.addEventListener("pointermove", onPointerMove, { passive: true });
+  window.addEventListener("pointerleave", onPointerLeave);
+  window.addEventListener("blur", onPointerLeave);
 
   resize();
   startIntroTransition();
-})();
+
+  cleanup = () => {
+    window.removeEventListener("resize", onResize);
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerleave", onPointerLeave);
+    window.removeEventListener("blur", onPointerLeave);
+    if (rafId) {
+      cancelAnimationFrame(rafId);
+    }
+  };
+});
+
+onBeforeUnmount(() => {
+  cleanup?.();
+});
+</script>
+
+<style scoped>
+.portal-field {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.portal-field__canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.portal-field__controls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.portal-field__palette {
+  display: flex;
+  gap: 8px;
+}
+
+.portal-field__swatch,
+.portal-field__jump {
+  border: 1px solid rgba(255, 255, 255, 0.46);
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.18) inset,
+    0 8px 20px rgba(15, 23, 42, 0.16);
+}
+
+.portal-field__swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  padding: 0;
+  cursor: pointer;
+}
+
+.portal-field__swatch:nth-child(1) {
+  background: linear-gradient(135deg, #ff6680, #ffd76b);
+}
+
+.portal-field__swatch:nth-child(2) {
+  background: linear-gradient(135deg, #34e8d8, #7ca2ff);
+}
+
+.portal-field__swatch:nth-child(3) {
+  background: linear-gradient(135deg, #ff6f57, #ffd18b);
+}
+
+.portal-field__swatch:nth-child(4) {
+  background: linear-gradient(135deg, #bb65ff, #54ffd9);
+}
+
+.portal-field__swatch:nth-child(5) {
+  background: linear-gradient(135deg, #78ff9c, #3fc0ff);
+}
+
+.portal-field__swatch.active {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.84),
+    0 0 0 3px rgba(0, 0, 0, 0.18),
+    0 0 12px rgba(255, 255, 255, 0.12);
+}
+
+.portal-field__jump {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.84);
+  color: #09090b;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.portal-field__jump:active,
+.portal-field__swatch:active {
+  transform: translateY(1px);
+}
+</style>

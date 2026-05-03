@@ -8,6 +8,16 @@
   </head>
   <body>
     <canvas id="triangle-field" aria-hidden="true"></canvas>
+    <div id="controls" aria-label="Color controls">
+      <div id="palette-picker" role="tablist" aria-label="Palette chooser">
+        <button class="swatch" type="button" data-theme="0" aria-label="Palette 1"></button>
+        <button class="swatch" type="button" data-theme="1" aria-label="Palette 2"></button>
+        <button class="swatch" type="button" data-theme="2" aria-label="Palette 3"></button>
+        <button class="swatch" type="button" data-theme="3" aria-label="Palette 4"></button>
+        <button class="swatch" type="button" data-theme="4" aria-label="Palette 5"></button>
+      </div>
+      <button id="jump-button" type="button" aria-label="Jump">↗</button>
+    </div>
     <script src="script.js"></script>
   </body>
 </html>

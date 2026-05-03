@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+}
+
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model UserProfile {
+  id               String              @id @default(cuid())
+  email            String?             @unique
+  username         String?
+  name             String?
+  avatarUrl        String?             @db.Text
+  passwordHash     String?
+  status           UserStatus          @default(PENDING)
+  isAdminSnapshot  Boolean             @default(false)
+  approvedAt       DateTime?
+  approvedById     String?
+  lastLoginAt      DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  approvedBy       UserProfile?        @relation("UserApprovals", fields: [approvedById], references: [id])
+  approvedUsers    UserProfile[]       @relation("UserApprovals")
+  issuedInvites    InviteCode[]        @relation("InviteIssuer")
+  accounts         AuthAccount[]
+  sessions         AuthSession[]
+  serviceAccess    UserServiceAccess[]
+  requests         AccessRequest[]     @relation("AccessRequester")
+  reviewedRequests AccessRequest[]     @relation("AccessReviewer")
+  authCodes        ServiceAuthCode[]
+  auditLogs        AuditLog[]          @relation("AuditActor")
+
+  @@index([email])
+  @@index([username])
+  @@index([status])
+}
+
+model AuthAccount {
+  id                String      @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  username          String?
+  profile           Json?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model AuthSession {
+  id          String      @id @default(cuid())
+  tokenHash   String      @unique
+  userId      String
+  expiresAt   DateTime
+  lastSeenAt  DateTime    @default(now())
+  userAgent   String?     @db.Text
+  ipAddress   String?
+  createdAt   DateTime    @default(now())
+  user        UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model InviteCode {
+  id                String   @id @default(cuid())
+  label             String
+  codeHash          String   @unique
+  enabled           Boolean  @default(true)
+  maxUses           Int      @default(1)
+  usedCount         Int      @default(0)
+  grantsAllServices Boolean  @default(false)
+  expiresAt         DateTime?
+  createdById       String?
+  createdBy         UserProfile? @relation("InviteIssuer", fields: [createdById], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([enabled])
+}
+
+model ServiceApp {
+  id                String              @id @default(cuid())
+  name              String
+  slug              String              @unique
+  description       String?             @db.Text
+  homeUrl           String
+  callbackUrls      Json
+  clientId          String              @unique
+  clientSecretHash  String
+  enabled           Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  access            UserServiceAccess[]
+  requests          AccessRequest[]
+  authCodes         ServiceAuthCode[]
+
+  @@index([enabled])
+}
+
+model UserServiceAccess {
+  id         String      @id @default(cuid())
+  userId     String
+  serviceId  String
+  allowed    Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  user       UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service    ServiceApp  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serviceId])
+  @@index([serviceId])
+}
+
+model AccessRequest {
+  id           String              @id @default(cuid())
+  requesterId  String
+  serviceId    String?
+  message      String              @db.Text
+  status       AccessRequestStatus @default(PENDING)
+  reviewedAt   DateTime?
+  reviewedById String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  requester    UserProfile         @relation("AccessRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  service      ServiceApp?         @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  reviewedBy   UserProfile?        @relation("AccessReviewer", fields: [reviewedById], references: [id])
+
+  @@index([status])
+  @@index([serviceId])
+}
+
+model ServiceAuthCode {
+  id          String      @id @default(cuid())
+  codeHash    String      @unique
+  userId      String
+  serviceId   String
+  callbackUrl String      @db.Text
+  state       String?
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  user        UserProfile @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service     ServiceApp  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id         String       @id @default(cuid())
+  actorId    String?
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime     @default(now())
+  actor      UserProfile? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([action])
+  @@index([targetType, targetId])
+}
