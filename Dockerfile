@@ -3,6 +3,8 @@ ARG PNPM_VERSION=10.32.1
 
 FROM ${NODE_IMAGE} AS base
 
+ARG PNPM_VERSION=10.32.1
+
 ENV PNPM_HOME=/pnpm
 ENV PATH="${PNPM_HOME}:${PATH}"
 
@@ -16,7 +18,7 @@ RUN apt-get update \
 
 FROM base AS deps
 
-COPY package.json pnpm-lock.yaml .npmrc ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
 RUN pnpm install --frozen-lockfile
 
 FROM deps AS build
