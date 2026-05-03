@@ -43,6 +43,33 @@
       <section class="panel-card panel-card--strong admin-card">
         <el-tabs v-model="activeTab">
           <el-tab-pane :label="t('admin.tabRequests')" name="requests">
+            <div class="admin-toolbar">
+              <input
+                v-model="requestQuery.q"
+                class="field-input admin-search"
+                :placeholder="t('admin.requestSearchPlaceholder')"
+                @keyup.enter="applyFilters(requestQuery)"
+              />
+              <select v-model="requestQuery.status" class="field-input admin-filter" @change="applyFilters(requestQuery)">
+                <option value="">{{ t("admin.allStatuses") }}</option>
+                <option value="PENDING">PENDING</option>
+                <option value="APPROVED">APPROVED</option>
+                <option value="REJECTED">REJECTED</option>
+              </select>
+              <select v-model="requestQuery.serviceId" class="field-input admin-filter" @change="applyFilters(requestQuery)">
+                <option value="">{{ t("admin.allServices") }}</option>
+                <option v-for="service in serviceOptions" :key="service.id" :value="service.id">
+                  {{ service.name }}
+                </option>
+              </select>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="applyFilters(requestQuery)">
+                {{ t("common.search") }}
+              </button>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="resetFilters(requestQuery)">
+                {{ t("common.reset") }}
+              </button>
+            </div>
+
             <el-table v-loading="loading" :data="requests" stripe>
               <el-table-column :label="t('common.user')" min-width="210">
                 <template #default="{ row }">
@@ -83,9 +110,47 @@
                 </template>
               </el-table-column>
             </el-table>
+            <div class="admin-pagination">
+              <el-pagination
+                background
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="requestQuery.total"
+                :current-page="requestQuery.page"
+                :page-size="requestQuery.pageSize"
+                :page-sizes="pageSizes"
+                @current-change="setPage(requestQuery, $event)"
+                @size-change="setPageSize(requestQuery, $event)"
+              />
+            </div>
           </el-tab-pane>
 
           <el-tab-pane :label="t('admin.tabUsers')" name="users">
+            <div class="admin-toolbar">
+              <input
+                v-model="userQuery.q"
+                class="field-input admin-search"
+                :placeholder="t('admin.userSearchPlaceholder')"
+                @keyup.enter="applyFilters(userQuery)"
+              />
+              <select v-model="userQuery.status" class="field-input admin-filter" @change="applyFilters(userQuery)">
+                <option value="">{{ t("admin.allStatuses") }}</option>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="SUSPENDED">SUSPENDED</option>
+              </select>
+              <select v-model="userQuery.serviceId" class="field-input admin-filter" @change="applyFilters(userQuery)">
+                <option value="">{{ t("admin.allServices") }}</option>
+                <option v-for="service in serviceOptions" :key="service.id" :value="service.id">
+                  {{ service.name }}
+                </option>
+              </select>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="applyFilters(userQuery)">
+                {{ t("common.search") }}
+              </button>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="resetFilters(userQuery)">
+                {{ t("common.reset") }}
+              </button>
+            </div>
+
             <el-table v-loading="loading" :data="users" stripe>
               <el-table-column :label="t('common.user')" min-width="260">
                 <template #default="{ row }">
@@ -127,37 +192,49 @@
                 </template>
               </el-table-column>
             </el-table>
+            <div class="admin-pagination">
+              <el-pagination
+                background
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="userQuery.total"
+                :current-page="userQuery.page"
+                :page-size="userQuery.pageSize"
+                :page-sizes="pageSizes"
+                @current-change="setPage(userQuery, $event)"
+                @size-change="setPageSize(userQuery, $event)"
+              />
+            </div>
           </el-tab-pane>
 
           <el-tab-pane :label="t('admin.tabInvites')" name="invites">
-            <div class="form-grid admin-form-grid">
-              <label>
-                <span class="field-label">{{ t("admin.inviteLabel") }}</span>
-                <input v-model="inviteForm.label" class="field-input" :placeholder="t('admin.inviteLabelPlaceholder')" />
-              </label>
-              <label>
-                <span class="field-label">{{ t("admin.maxUses") }}</span>
-                <input v-model.number="inviteForm.maxUses" class="field-input" type="number" min="1" />
-              </label>
-              <label>
-                <span class="field-label">{{ t("admin.expiresAt") }}</span>
-                <input v-model="inviteForm.expiresAt" class="field-input" type="datetime-local" />
-              </label>
-              <label class="wide-field">
-                <span class="field-label">{{ t("admin.inviteServices") }}</span>
-                <el-select v-model="inviteForm.serviceIds" multiple filterable :placeholder="t('admin.inviteServicesPlaceholder')">
-                  <el-option
-                    v-for="service in inviteableServices"
-                    :key="service.id"
-                    :label="service.name"
-                    :value="service.id"
-                  />
-                </el-select>
-              </label>
-            </div>
-            <div class="action-row admin-actions">
-              <button class="primary-btn" type="button" @click="createInvite">{{ t("admin.createInvite") }}</button>
+            <div class="admin-toolbar">
+              <button class="primary-btn compact-admin-btn" type="button" @click="openInviteCreate">
+                {{ t("admin.createInvite") }}
+              </button>
               <span v-if="lastInviteCode" class="badge badge--ok">{{ t("admin.newInvite", { code: lastInviteCode }) }}</span>
+              <input
+                v-model="inviteQuery.q"
+                class="field-input admin-search"
+                :placeholder="t('admin.inviteSearchPlaceholder')"
+                @keyup.enter="applyFilters(inviteQuery)"
+              />
+              <select v-model="inviteQuery.enabled" class="field-input admin-filter" @change="applyFilters(inviteQuery)">
+                <option value="">{{ t("admin.allEnabledStates") }}</option>
+                <option value="enabled">{{ t("common.enabled") }}</option>
+                <option value="disabled">{{ t("common.disabled") }}</option>
+              </select>
+              <select v-model="inviteQuery.serviceId" class="field-input admin-filter" @change="applyFilters(inviteQuery)">
+                <option value="">{{ t("admin.allServices") }}</option>
+                <option v-for="service in serviceOptions" :key="service.id" :value="service.id">
+                  {{ service.name }}
+                </option>
+              </select>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="applyFilters(inviteQuery)">
+                {{ t("common.search") }}
+              </button>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="resetFilters(inviteQuery)">
+                {{ t("common.reset") }}
+              </button>
             </div>
 
             <el-table v-loading="loading" :data="invites" stripe>
@@ -183,58 +260,49 @@
                 <template #default="{ row }">{{ row.createdBy?.account || row.createdBy?.email || row.createdBy?.name || "-" }}</template>
               </el-table-column>
             </el-table>
+            <div class="admin-pagination">
+              <el-pagination
+                background
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="inviteQuery.total"
+                :current-page="inviteQuery.page"
+                :page-size="inviteQuery.pageSize"
+                :page-sizes="pageSizes"
+                @current-change="setPage(inviteQuery, $event)"
+                @size-change="setPageSize(inviteQuery, $event)"
+              />
+            </div>
           </el-tab-pane>
 
           <el-tab-pane :label="t('admin.tabServices')" name="services">
-            <div class="form-grid admin-form-grid">
-              <label>
-                <span class="field-label">{{ t("admin.serviceName") }}</span>
-                <input v-model="serviceForm.name" class="field-input" :placeholder="t('admin.serviceNamePlaceholder')" />
-              </label>
-              <label>
-                <span class="field-label">Slug</span>
-                <input v-model="serviceForm.slug" class="field-input" placeholder="docs" />
-              </label>
-              <label>
-                <span class="field-label">{{ t("admin.homeUrl") }}</span>
-                <input v-model="serviceForm.homeUrl" class="field-input" placeholder="https://app.example.com" />
-              </label>
-              <label>
-                <span class="field-label">{{ t("admin.healthCheckUrl") }}</span>
-                <input v-model="serviceForm.healthCheckUrl" class="field-input" :placeholder="t('admin.healthCheckUrlPlaceholder')" />
-              </label>
-              <label>
-                <span class="field-label">{{ t("admin.docsUrl") }}</span>
-                <input v-model="serviceForm.docsUrl" class="field-input" :placeholder="t('admin.docsUrlPlaceholder')" />
-              </label>
-              <label>
-                <span class="field-label">{{ t("admin.serviceDescription") }}</span>
-                <input v-model="serviceForm.description" class="field-input" :placeholder="t('admin.serviceDescriptionPlaceholder')" />
-              </label>
-              <label class="wide-field">
-                <span class="field-label">{{ t("admin.callbackUrls") }}</span>
-                <textarea
-                  v-model="serviceForm.callbackUrlsText"
-                  class="field-textarea"
-                  placeholder="https://app.example.com/auth/callback"
-                />
-              </label>
-              <label class="checkbox-line">
-                <input v-model="serviceForm.allowDirectAccess" type="checkbox" />
-                <span>{{ t("admin.allowDirect") }}</span>
-              </label>
-              <label class="checkbox-line">
-                <input v-model="serviceForm.allowInviteAccess" type="checkbox" />
-                <span>{{ t("admin.allowInvite") }}</span>
-              </label>
-              <label class="checkbox-line">
-                <input v-model="serviceForm.allowAccessRequest" type="checkbox" />
-                <span>{{ t("admin.allowRequest") }}</span>
-              </label>
-            </div>
-            <div class="action-row admin-actions">
-              <button class="primary-btn" type="button" @click="createService">{{ t("admin.createService") }}</button>
+            <div class="admin-toolbar">
+              <button class="primary-btn compact-admin-btn" type="button" @click="openServiceCreate">
+                {{ t("admin.createService") }}
+              </button>
               <span v-if="lastServiceSecret" class="badge badge--warn">{{ t("admin.newSecret", { secret: lastServiceSecret }) }}</span>
+              <input
+                v-model="serviceQuery.q"
+                class="field-input admin-search"
+                :placeholder="t('admin.serviceSearchPlaceholder')"
+                @keyup.enter="applyFilters(serviceQuery)"
+              />
+              <select v-model="serviceQuery.enabled" class="field-input admin-filter" @change="applyFilters(serviceQuery)">
+                <option value="">{{ t("admin.allEnabledStates") }}</option>
+                <option value="enabled">{{ t("common.enabled") }}</option>
+                <option value="disabled">{{ t("common.disabled") }}</option>
+              </select>
+              <select v-model="serviceQuery.accessMode" class="field-input admin-filter" @change="applyFilters(serviceQuery)">
+                <option value="">{{ t("admin.allAccessModes") }}</option>
+                <option value="direct">{{ t("admin.direct") }}</option>
+                <option value="invite">{{ t("admin.invite") }}</option>
+                <option value="request">{{ t("admin.request") }}</option>
+              </select>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="applyFilters(serviceQuery)">
+                {{ t("common.search") }}
+              </button>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="resetFilters(serviceQuery)">
+                {{ t("common.reset") }}
+              </button>
             </div>
 
             <el-table v-loading="loading" :data="services" stripe>
@@ -290,33 +358,41 @@
                 </template>
               </el-table-column>
             </el-table>
+            <div class="admin-pagination">
+              <el-pagination
+                background
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="serviceQuery.total"
+                :current-page="serviceQuery.page"
+                :page-size="serviceQuery.pageSize"
+                :page-sizes="pageSizes"
+                @current-change="setPage(serviceQuery, $event)"
+                @size-change="setPageSize(serviceQuery, $event)"
+              />
+            </div>
           </el-tab-pane>
 
           <el-tab-pane :label="t('admin.tabOpenSource')" name="open-source">
-            <div class="form-grid admin-form-grid">
-              <label>
-                <span class="field-label">{{ t("admin.openSourceName") }}</span>
-                <input v-model="openSourceForm.name" class="field-input" placeholder="Vue / Nuxt / Prisma" />
-              </label>
-              <label>
-                <span class="field-label">{{ t("admin.openSourceUrl") }}</span>
-                <input v-model="openSourceForm.url" class="field-input" placeholder="https://github.com/..." />
-              </label>
-              <label>
-                <span class="field-label">{{ t("admin.sortOrder") }}</span>
-                <input v-model.number="openSourceForm.sortOrder" class="field-input" type="number" />
-              </label>
-              <label class="checkbox-line">
-                <input v-model="openSourceForm.enabled" type="checkbox" />
-                <span>{{ t("common.enabled") }}</span>
-              </label>
-            </div>
-            <div class="action-row admin-actions">
-              <button class="primary-btn" type="button" @click="saveOpenSourceCredit">
-                {{ openSourceForm.id ? t("common.save") : t("admin.createOpenSource") }}
+            <div class="admin-toolbar">
+              <button class="primary-btn compact-admin-btn" type="button" @click="openOpenSourceCreate">
+                {{ t("admin.createOpenSource") }}
               </button>
-              <button v-if="openSourceForm.id" class="ghost-btn" type="button" @click="resetOpenSourceForm">
-                {{ t("common.cancel") }}
+              <input
+                v-model="openSourceQuery.q"
+                class="field-input admin-search"
+                :placeholder="t('admin.openSourceSearchPlaceholder')"
+                @keyup.enter="applyFilters(openSourceQuery)"
+              />
+              <select v-model="openSourceQuery.enabled" class="field-input admin-filter" @change="applyFilters(openSourceQuery)">
+                <option value="">{{ t("admin.allEnabledStates") }}</option>
+                <option value="enabled">{{ t("common.enabled") }}</option>
+                <option value="disabled">{{ t("common.disabled") }}</option>
+              </select>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="applyFilters(openSourceQuery)">
+                {{ t("common.search") }}
+              </button>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="resetFilters(openSourceQuery)">
+                {{ t("common.reset") }}
               </button>
             </div>
 
@@ -335,14 +411,59 @@
               </el-table-column>
               <el-table-column :label="t('common.actions')" width="170" fixed="right">
                 <template #default="{ row }">
-                  <el-button size="small" @click="editOpenSourceCredit(row)">{{ t("common.edit") }}</el-button>
+                  <el-button size="small" @click="openOpenSourceEdit(row)">{{ t("common.edit") }}</el-button>
                   <el-button size="small" type="danger" plain @click="deleteOpenSourceCredit(row.id)">{{ t("common.delete") }}</el-button>
                 </template>
               </el-table-column>
             </el-table>
+            <div class="admin-pagination">
+              <el-pagination
+                background
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="openSourceQuery.total"
+                :current-page="openSourceQuery.page"
+                :page-size="openSourceQuery.pageSize"
+                :page-sizes="pageSizes"
+                @current-change="setPage(openSourceQuery, $event)"
+                @size-change="setPageSize(openSourceQuery, $event)"
+              />
+            </div>
           </el-tab-pane>
 
           <el-tab-pane :label="t('admin.tabFeedback')" name="feedback">
+            <div class="admin-toolbar">
+              <input
+                v-model="feedbackQuery.q"
+                class="field-input admin-search"
+                :placeholder="t('admin.feedbackSearchPlaceholder')"
+                @keyup.enter="applyFilters(feedbackQuery)"
+              />
+              <select v-model="feedbackQuery.status" class="field-input admin-filter" @change="applyFilters(feedbackQuery)">
+                <option value="">{{ t("admin.allStatuses") }}</option>
+                <option value="NEW">{{ t("admin.feedbackStatusNew") }}</option>
+                <option value="REVIEWING">{{ t("admin.feedbackStatusReviewing") }}</option>
+                <option value="RESOLVED">{{ t("admin.feedbackStatusResolved") }}</option>
+              </select>
+              <select v-model="feedbackQuery.type" class="field-input admin-filter" @change="applyFilters(feedbackQuery)">
+                <option value="">{{ t("admin.allFeedbackTypes") }}</option>
+                <option value="suggestion">{{ t("feedback.typeSuggestion") }}</option>
+                <option value="complaint">{{ t("feedback.typeComplaint") }}</option>
+                <option value="bug">{{ t("feedback.typeBug") }}</option>
+              </select>
+              <select v-model="feedbackQuery.serviceId" class="field-input admin-filter" @change="applyFilters(feedbackQuery)">
+                <option value="">{{ t("admin.allServices") }}</option>
+                <option v-for="service in serviceOptions" :key="service.id" :value="service.id">
+                  {{ service.name }}
+                </option>
+              </select>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="applyFilters(feedbackQuery)">
+                {{ t("common.search") }}
+              </button>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="resetFilters(feedbackQuery)">
+                {{ t("common.reset") }}
+              </button>
+            </div>
+
             <el-table v-loading="loading" :data="feedbackList" stripe>
               <el-table-column :label="t('admin.feedbackType')" width="120">
                 <template #default="{ row }">{{ feedbackTypeText(row.type) }}</template>
@@ -350,7 +471,7 @@
               <el-table-column :label="t('admin.feedbackContent')" min-width="300">
                 <template #default="{ row }">
                   <div class="feedback-content">{{ row.content }}</div>
-                  <div v-if="row.contact" class="muted">{{ t("admin.feedbackContact") }}：{{ row.contact }}</div>
+                  <div v-if="row.contact" class="muted">{{ t("admin.feedbackContact") }}: {{ row.contact }}</div>
                 </template>
               </el-table-column>
               <el-table-column :label="t('common.service')" min-width="160">
@@ -375,45 +496,144 @@
                 </template>
               </el-table-column>
             </el-table>
+            <div class="admin-pagination">
+              <el-pagination
+                background
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="feedbackQuery.total"
+                :current-page="feedbackQuery.page"
+                :page-size="feedbackQuery.pageSize"
+                :page-sizes="pageSizes"
+                @current-change="setPage(feedbackQuery, $event)"
+                @size-change="setPageSize(feedbackQuery, $event)"
+              />
+            </div>
           </el-tab-pane>
         </el-tabs>
       </section>
     </template>
 
-    <el-dialog v-model="serviceEditVisible" :title="t('admin.editService')" width="640px">
+    <el-dialog v-model="inviteDialogVisible" :title="t('admin.createInvite')" width="640px">
       <div class="form-grid admin-form-grid">
         <label>
-          <span class="field-label">{{ t("admin.serviceName") }}</span>
-          <input v-model="serviceEditForm.name" class="field-input" />
+          <span class="field-label">{{ t("admin.inviteLabel") }}</span>
+          <input v-model="inviteForm.label" class="field-input" :placeholder="t('admin.inviteLabelPlaceholder')" />
         </label>
         <label>
-          <span class="field-label">Slug</span>
-          <input v-model="serviceEditForm.slug" class="field-input" />
+          <span class="field-label">{{ t("admin.maxUses") }}</span>
+          <input v-model.number="inviteForm.maxUses" class="field-input" type="number" min="1" />
         </label>
         <label>
-          <span class="field-label">{{ t("admin.homeUrl") }}</span>
-          <input v-model="serviceEditForm.homeUrl" class="field-input" />
-        </label>
-        <label>
-          <span class="field-label">{{ t("admin.healthCheckUrl") }}</span>
-          <input v-model="serviceEditForm.healthCheckUrl" class="field-input" :placeholder="t('admin.healthCheckUrlPlaceholder')" />
-        </label>
-        <label>
-          <span class="field-label">{{ t("admin.docsUrl") }}</span>
-          <input v-model="serviceEditForm.docsUrl" class="field-input" :placeholder="t('admin.docsUrlPlaceholder')" />
-        </label>
-        <label>
-          <span class="field-label">{{ t("admin.serviceDescription") }}</span>
-          <input v-model="serviceEditForm.description" class="field-input" />
+          <span class="field-label">{{ t("admin.expiresAt") }}</span>
+          <input v-model="inviteForm.expiresAt" class="field-input" type="datetime-local" />
         </label>
         <label class="wide-field">
-          <span class="field-label">{{ t("admin.callbackUrls") }}</span>
-          <textarea v-model="serviceEditForm.callbackUrlsText" class="field-textarea" />
+          <span class="field-label">{{ t("admin.inviteServices") }}</span>
+          <el-select v-model="inviteForm.serviceIds" multiple filterable :placeholder="t('admin.inviteServicesPlaceholder')">
+            <el-option
+              v-for="service in inviteableServices"
+              :key="service.id"
+              :label="service.name"
+              :value="service.id"
+            />
+          </el-select>
         </label>
       </div>
       <template #footer>
-        <button class="ghost-btn" type="button" @click="serviceEditVisible = false">{{ t("common.cancel") }}</button>
-        <button class="primary-btn" type="button" @click="saveServiceEdit">{{ t("admin.saveService") }}</button>
+        <button class="ghost-btn" type="button" @click="inviteDialogVisible = false">{{ t("common.cancel") }}</button>
+        <button class="primary-btn" type="button" @click="createInvite">{{ t("admin.createInvite") }}</button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="serviceDialogVisible"
+      :title="serviceForm.id ? t('admin.editService') : t('admin.createService')"
+      width="680px"
+    >
+      <div class="form-grid admin-form-grid">
+        <label>
+          <span class="field-label">{{ t("admin.serviceName") }}</span>
+          <input v-model="serviceForm.name" class="field-input" :placeholder="t('admin.serviceNamePlaceholder')" />
+        </label>
+        <label>
+          <span class="field-label">Slug</span>
+          <input v-model="serviceForm.slug" class="field-input" placeholder="docs" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.homeUrl") }}</span>
+          <input v-model="serviceForm.homeUrl" class="field-input" placeholder="https://app.example.com" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.healthCheckUrl") }}</span>
+          <input v-model="serviceForm.healthCheckUrl" class="field-input" :placeholder="t('admin.healthCheckUrlPlaceholder')" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.docsUrl") }}</span>
+          <input v-model="serviceForm.docsUrl" class="field-input" :placeholder="t('admin.docsUrlPlaceholder')" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.serviceDescription") }}</span>
+          <input v-model="serviceForm.description" class="field-input" :placeholder="t('admin.serviceDescriptionPlaceholder')" />
+        </label>
+        <label class="wide-field">
+          <span class="field-label">{{ t("admin.callbackUrls") }}</span>
+          <textarea
+            v-model="serviceForm.callbackUrlsText"
+            class="field-textarea"
+            placeholder="https://app.example.com/auth/callback"
+          />
+        </label>
+        <label class="checkbox-line">
+          <input v-model="serviceForm.enabled" type="checkbox" />
+          <span>{{ t("common.enabled") }}</span>
+        </label>
+        <label class="checkbox-line">
+          <input v-model="serviceForm.allowDirectAccess" type="checkbox" />
+          <span>{{ t("admin.allowDirect") }}</span>
+        </label>
+        <label class="checkbox-line">
+          <input v-model="serviceForm.allowInviteAccess" type="checkbox" />
+          <span>{{ t("admin.allowInvite") }}</span>
+        </label>
+        <label class="checkbox-line">
+          <input v-model="serviceForm.allowAccessRequest" type="checkbox" />
+          <span>{{ t("admin.allowRequest") }}</span>
+        </label>
+      </div>
+      <template #footer>
+        <button class="ghost-btn" type="button" @click="serviceDialogVisible = false">{{ t("common.cancel") }}</button>
+        <button class="primary-btn" type="button" @click="saveService">{{ serviceForm.id ? t("admin.saveService") : t("admin.createService") }}</button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="openSourceDialogVisible"
+      :title="openSourceForm.id ? t('admin.editOpenSource') : t('admin.createOpenSource')"
+      width="560px"
+    >
+      <div class="form-grid admin-form-grid">
+        <label>
+          <span class="field-label">{{ t("admin.openSourceName") }}</span>
+          <input v-model="openSourceForm.name" class="field-input" placeholder="Vue / Nuxt / Prisma" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.openSourceUrl") }}</span>
+          <input v-model="openSourceForm.url" class="field-input" placeholder="https://github.com/..." />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.sortOrder") }}</span>
+          <input v-model.number="openSourceForm.sortOrder" class="field-input" type="number" />
+        </label>
+        <label class="checkbox-line">
+          <input v-model="openSourceForm.enabled" type="checkbox" />
+          <span>{{ t("common.enabled") }}</span>
+        </label>
+      </div>
+      <template #footer>
+        <button class="ghost-btn" type="button" @click="openSourceDialogVisible = false">{{ t("common.cancel") }}</button>
+        <button class="primary-btn" type="button" @click="saveOpenSourceCredit">
+          {{ openSourceForm.id ? t("common.save") : t("admin.createOpenSource") }}
+        </button>
       </template>
     </el-dialog>
   </div>
@@ -424,13 +644,34 @@ import { ElMessage } from "element-plus/es/components/message/index";
 import { computed, onMounted, reactive, ref } from "vue";
 
 type RequestStatus = "PENDING" | "APPROVED" | "REJECTED";
-type UserStatus = "ACTIVE" | "SUSPENDED";
+type UserStatus = "ACTIVE" | "PENDING" | "APPROVED" | "SUSPENDED";
 type FeedbackStatus = "NEW" | "REVIEWING" | "RESOLVED";
+
+type ListQuery = {
+  page: number;
+  pageSize: number;
+  total: number;
+  q: string;
+  status?: string;
+  serviceId?: string;
+  enabled?: string;
+  accessMode?: string;
+  type?: string;
+};
+
+type ServiceOption = {
+  id: string;
+  name: string;
+  slug: string;
+  enabled: boolean;
+  allowInviteAccess: boolean;
+};
 
 const activeTab = ref("requests");
 const loading = ref(true);
 const errorMessage = ref("");
 const { t, localizeError } = usePortalI18n();
+const pageSizes = [10, 20, 50, 100];
 const summary = reactive({
   users: 0,
   suspendedUsers: 0,
@@ -444,9 +685,61 @@ const invites = ref<any[]>([]);
 const requests = ref<any[]>([]);
 const openSourceCredits = ref<any[]>([]);
 const feedbackList = ref<any[]>([]);
+const serviceOptions = ref<ServiceOption[]>([]);
 const lastInviteCode = ref("");
 const lastServiceSecret = ref("");
-const serviceEditVisible = ref(false);
+const inviteDialogVisible = ref(false);
+const serviceDialogVisible = ref(false);
+const openSourceDialogVisible = ref(false);
+
+const requestQuery = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  q: "",
+  status: "",
+  serviceId: ""
+});
+const userQuery = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  q: "",
+  status: "",
+  serviceId: ""
+});
+const inviteQuery = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  q: "",
+  enabled: "",
+  serviceId: ""
+});
+const serviceQuery = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  q: "",
+  enabled: "",
+  accessMode: ""
+});
+const openSourceQuery = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  q: "",
+  enabled: ""
+});
+const feedbackQuery = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  q: "",
+  status: "",
+  type: "",
+  serviceId: ""
+});
 
 const inviteForm = reactive({
   label: "",
@@ -456,19 +749,6 @@ const inviteForm = reactive({
 });
 
 const serviceForm = reactive({
-  name: "",
-  slug: "",
-  description: "",
-  homeUrl: "",
-  healthCheckUrl: "",
-  docsUrl: "",
-  callbackUrlsText: "",
-  allowDirectAccess: false,
-  allowInviteAccess: true,
-  allowAccessRequest: true
-});
-
-const serviceEditForm = reactive({
   id: "",
   name: "",
   slug: "",
@@ -476,7 +756,11 @@ const serviceEditForm = reactive({
   homeUrl: "",
   healthCheckUrl: "",
   docsUrl: "",
-  callbackUrlsText: ""
+  callbackUrlsText: "",
+  enabled: true,
+  allowDirectAccess: false,
+  allowInviteAccess: true,
+  allowAccessRequest: true
 });
 
 const openSourceForm = reactive({
@@ -489,11 +773,15 @@ const openSourceForm = reactive({
 
 function userTag(status: UserStatus) {
   if (status === "SUSPENDED") return "danger";
+  if (status === "PENDING") return "warning";
   return "success";
 }
 
 function userStatusText(status: UserStatus) {
-  return status === "SUSPENDED" ? t("common.disabled") : t("common.enabled");
+  if (status === "SUSPENDED") return t("common.disabled");
+  if (status === "PENDING") return "PENDING";
+  if (status === "APPROVED") return "APPROVED";
+  return t("common.enabled");
 }
 
 function requestTag(status: RequestStatus) {
@@ -528,11 +816,58 @@ function feedbackTypeText(type: string) {
 }
 
 const inviteableServices = computed(() =>
-  services.value.filter((service) => service.enabled && service.allowInviteAccess)
+  serviceOptions.value.filter((service) => service.enabled && service.allowInviteAccess)
 );
 
 function allowedServiceAccess(row: any) {
   return row.serviceAccess.filter((item: any) => item.allowed);
+}
+
+function listQueryParams(state: ListQuery) {
+  const params: Record<string, string | number> = {
+    page: state.page,
+    pageSize: state.pageSize
+  };
+
+  for (const key of ["q", "status", "serviceId", "enabled", "accessMode", "type"] as const) {
+    const value = state[key];
+    if (value) {
+      params[key] = value;
+    }
+  }
+
+  return params;
+}
+
+function resetListFilters(state: ListQuery) {
+  state.q = "";
+  if ("status" in state) state.status = "";
+  if ("serviceId" in state) state.serviceId = "";
+  if ("enabled" in state) state.enabled = "";
+  if ("accessMode" in state) state.accessMode = "";
+  if ("type" in state) state.type = "";
+  state.page = 1;
+}
+
+function setPage(state: ListQuery, page: number) {
+  state.page = page;
+  loadAll();
+}
+
+function setPageSize(state: ListQuery, pageSize: number) {
+  state.page = 1;
+  state.pageSize = pageSize;
+  loadAll();
+}
+
+function applyFilters(state: ListQuery) {
+  state.page = 1;
+  loadAll();
+}
+
+function resetFilters(state: ListQuery) {
+  resetListFilters(state);
+  loadAll();
 }
 
 async function loadAll() {
@@ -547,25 +882,34 @@ async function loadAll() {
       inviteResult,
       requestResult,
       openSourceResult,
-      feedbackResult
+      feedbackResult,
+      serviceOptionResult
     ] =
       await Promise.all([
         $fetch<typeof summary>("/api/admin/summary"),
-        $fetch<{ users: any[] }>("/api/admin/users"),
-        $fetch<{ services: any[] }>("/api/admin/services"),
-        $fetch<{ invites: any[] }>("/api/admin/invites"),
-        $fetch<{ requests: any[] }>("/api/admin/requests"),
-        $fetch<{ credits: any[] }>("/api/admin/open-source-credits"),
-        $fetch<{ feedback: any[] }>("/api/admin/feedback")
+        $fetch<{ users: any[]; total: number }>("/api/admin/users", { query: listQueryParams(userQuery) }),
+        $fetch<{ services: any[]; total: number }>("/api/admin/services", { query: listQueryParams(serviceQuery) }),
+        $fetch<{ invites: any[]; total: number }>("/api/admin/invites", { query: listQueryParams(inviteQuery) }),
+        $fetch<{ requests: any[]; total: number }>("/api/admin/requests", { query: listQueryParams(requestQuery) }),
+        $fetch<{ credits: any[]; total: number }>("/api/admin/open-source-credits", { query: listQueryParams(openSourceQuery) }),
+        $fetch<{ feedback: any[]; total: number }>("/api/admin/feedback", { query: listQueryParams(feedbackQuery) }),
+        $fetch<{ services: ServiceOption[] }>("/api/admin/service-options")
       ]);
 
     Object.assign(summary, summaryResult);
     users.value = userResult.users;
+    userQuery.total = userResult.total;
     services.value = serviceResult.services;
+    serviceQuery.total = serviceResult.total;
     invites.value = inviteResult.invites;
+    inviteQuery.total = inviteResult.total;
     requests.value = requestResult.requests;
+    requestQuery.total = requestResult.total;
     openSourceCredits.value = openSourceResult.credits;
+    openSourceQuery.total = openSourceResult.total;
     feedbackList.value = feedbackResult.feedback;
+    feedbackQuery.total = feedbackResult.total;
+    serviceOptions.value = serviceOptionResult.services;
   } catch (error: any) {
     errorMessage.value = localizeError(error, "error.loadAdmin");
   } finally {
@@ -591,6 +935,18 @@ async function reviewRequest(id: string, status: RequestStatus) {
   await loadAll();
 }
 
+function resetInviteForm() {
+  inviteForm.label = "";
+  inviteForm.maxUses = 1;
+  inviteForm.expiresAt = "";
+  inviteForm.serviceIds = [];
+}
+
+function openInviteCreate() {
+  resetInviteForm();
+  inviteDialogVisible.value = true;
+}
+
 async function createInvite() {
   const result = await $fetch<{ code: string }>("/api/admin/invites", {
     method: "POST",
@@ -603,32 +959,15 @@ async function createInvite() {
   });
 
   lastInviteCode.value = result.code;
-  inviteForm.label = "";
-  inviteForm.maxUses = 1;
-  inviteForm.expiresAt = "";
-  inviteForm.serviceIds = [];
+  resetInviteForm();
+  inviteDialogVisible.value = false;
+  inviteQuery.page = 1;
   ElMessage.success(t("notice.inviteCreated"));
   await loadAll();
 }
 
-async function createService() {
-  const result = await $fetch<{ clientSecret: string }>("/api/admin/services", {
-    method: "POST",
-    body: {
-      name: serviceForm.name,
-      slug: serviceForm.slug,
-      description: serviceForm.description,
-      homeUrl: serviceForm.homeUrl,
-      healthCheckUrl: serviceForm.healthCheckUrl || undefined,
-      docsUrl: serviceForm.docsUrl || undefined,
-      callbackUrls: splitCallbackUrls(serviceForm.callbackUrlsText),
-      allowDirectAccess: serviceForm.allowDirectAccess,
-      allowInviteAccess: serviceForm.allowInviteAccess,
-      allowAccessRequest: serviceForm.allowAccessRequest
-    }
-  });
-
-  lastServiceSecret.value = result.clientSecret;
+function resetServiceForm() {
+  serviceForm.id = "";
   serviceForm.name = "";
   serviceForm.slug = "";
   serviceForm.description = "";
@@ -636,40 +975,66 @@ async function createService() {
   serviceForm.healthCheckUrl = "";
   serviceForm.docsUrl = "";
   serviceForm.callbackUrlsText = "";
+  serviceForm.enabled = true;
   serviceForm.allowDirectAccess = false;
   serviceForm.allowInviteAccess = true;
   serviceForm.allowAccessRequest = true;
-  ElMessage.success(t("notice.serviceCreated"));
-  await loadAll();
+}
+
+function openServiceCreate() {
+  resetServiceForm();
+  serviceDialogVisible.value = true;
 }
 
 function openServiceEdit(row: any) {
-  serviceEditForm.id = row.id;
-  serviceEditForm.name = row.name || "";
-  serviceEditForm.slug = row.slug || "";
-  serviceEditForm.description = row.description || "";
-  serviceEditForm.homeUrl = row.homeUrl || "";
-  serviceEditForm.healthCheckUrl = row.healthCheckUrl || "";
-  serviceEditForm.docsUrl = row.docsUrl || "";
-  serviceEditForm.callbackUrlsText = (row.callbackUrls || []).join("\n");
-  serviceEditVisible.value = true;
+  serviceForm.id = row.id;
+  serviceForm.name = row.name || "";
+  serviceForm.slug = row.slug || "";
+  serviceForm.description = row.description || "";
+  serviceForm.homeUrl = row.homeUrl || "";
+  serviceForm.healthCheckUrl = row.healthCheckUrl || "";
+  serviceForm.docsUrl = row.docsUrl || "";
+  serviceForm.callbackUrlsText = (row.callbackUrls || []).join("\n");
+  serviceForm.enabled = row.enabled !== false;
+  serviceForm.allowDirectAccess = Boolean(row.allowDirectAccess);
+  serviceForm.allowInviteAccess = row.allowInviteAccess !== false;
+  serviceForm.allowAccessRequest = row.allowAccessRequest !== false;
+  serviceDialogVisible.value = true;
 }
 
-async function saveServiceEdit() {
-  await $fetch(`/api/admin/services/${serviceEditForm.id}`, {
-    method: "PATCH",
-    body: {
-      name: serviceEditForm.name,
-      slug: serviceEditForm.slug,
-      description: serviceEditForm.description,
-      homeUrl: serviceEditForm.homeUrl,
-      healthCheckUrl: serviceEditForm.healthCheckUrl,
-      docsUrl: serviceEditForm.docsUrl,
-      callbackUrls: splitCallbackUrls(serviceEditForm.callbackUrlsText)
-    }
-  });
-  serviceEditVisible.value = false;
-  ElMessage.success(t("notice.serviceSaved"));
+async function saveService() {
+  const body = {
+    name: serviceForm.name,
+    slug: serviceForm.slug,
+    description: serviceForm.description,
+    homeUrl: serviceForm.homeUrl,
+    healthCheckUrl: serviceForm.healthCheckUrl,
+    docsUrl: serviceForm.docsUrl,
+    callbackUrls: splitCallbackUrls(serviceForm.callbackUrlsText),
+    enabled: serviceForm.enabled,
+    allowDirectAccess: serviceForm.allowDirectAccess,
+    allowInviteAccess: serviceForm.allowInviteAccess,
+    allowAccessRequest: serviceForm.allowAccessRequest
+  };
+
+  if (serviceForm.id) {
+    await $fetch(`/api/admin/services/${serviceForm.id}`, {
+      method: "PATCH",
+      body
+    });
+    ElMessage.success(t("notice.serviceSaved"));
+  } else {
+    const result = await $fetch<{ clientSecret: string }>("/api/admin/services", {
+      method: "POST",
+      body
+    });
+    lastServiceSecret.value = result.clientSecret;
+    serviceQuery.page = 1;
+    ElMessage.success(t("notice.serviceCreated"));
+  }
+
+  resetServiceForm();
+  serviceDialogVisible.value = false;
   await loadAll();
 }
 
@@ -704,12 +1069,18 @@ function resetOpenSourceForm() {
   openSourceForm.enabled = true;
 }
 
-function editOpenSourceCredit(row: any) {
+function openOpenSourceCreate() {
+  resetOpenSourceForm();
+  openSourceDialogVisible.value = true;
+}
+
+function openOpenSourceEdit(row: any) {
   openSourceForm.id = row.id;
   openSourceForm.name = row.name || "";
   openSourceForm.url = row.url || "";
   openSourceForm.sortOrder = row.sortOrder || 0;
   openSourceForm.enabled = row.enabled !== false;
+  openSourceDialogVisible.value = true;
 }
 
 async function saveOpenSourceCredit() {
@@ -730,9 +1101,11 @@ async function saveOpenSourceCredit() {
         method: "POST",
         body
       });
+      openSourceQuery.page = 1;
     }
 
     resetOpenSourceForm();
+    openSourceDialogVisible.value = false;
     ElMessage.success(t("notice.openSourceSaved"));
     await loadAll();
   } catch (error: any) {
@@ -775,6 +1148,36 @@ onMounted(loadAll);
   padding: 28px;
 }
 
+.admin-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.admin-search {
+  flex: 1 1 240px;
+  min-width: 180px;
+}
+
+.admin-filter {
+  width: 180px;
+  min-width: 150px;
+}
+
+.compact-admin-btn {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.admin-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
 .admin-form-grid {
   margin-bottom: 12px;
 }
@@ -795,10 +1198,6 @@ onMounted(loadAll);
   color: var(--page-muted);
 }
 
-.admin-actions {
-  margin: 12px 0 18px;
-}
-
 .inline-link {
   word-break: break-all;
   text-decoration: underline;
@@ -810,4 +1209,16 @@ onMounted(loadAll);
   white-space: pre-wrap;
 }
 
+@media (max-width: 720px) {
+  .admin-toolbar {
+    align-items: stretch;
+  }
+
+  .admin-search,
+  .admin-filter,
+  .compact-admin-btn {
+    width: 100%;
+    flex: 1 1 100%;
+  }
+}
 </style>

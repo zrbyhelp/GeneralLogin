@@ -1,21 +1,57 @@
+import type { Prisma } from "@prisma/client";
 import { requireAdminUser } from "~/server/utils/auth";
+import { getQueryString, parseAdminListQuery, parseBooleanFilter } from "~/server/utils/admin-list";
 import { parseCallbackUrls } from "~/server/utils/service-auth";
 import { prisma } from "~/server/utils/prisma";
 
 export default defineEventHandler(async (event) => {
   await requireAdminUser(event);
 
-  const services = await prisma.serviceApp.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      access: {
-        where: { allowed: true },
-        select: { id: true }
-      }
-    }
-  });
+  const { query, keyword, pageSize, skip } = parseAdminListQuery(event);
+  const enabled = parseBooleanFilter(getQueryString(query, "enabled"));
+  const accessMode = getQueryString(query, "accessMode");
+  const where: Prisma.ServiceAppWhereInput = {};
+
+  if (keyword) {
+    where.OR = [
+      { name: { contains: keyword } },
+      { slug: { contains: keyword } },
+      { description: { contains: keyword } },
+      { clientId: { contains: keyword } },
+      { homeUrl: { contains: keyword } }
+    ];
+  }
+
+  if (typeof enabled === "boolean") {
+    where.enabled = enabled;
+  }
+
+  if (accessMode === "direct") {
+    where.allowDirectAccess = true;
+  } else if (accessMode === "invite") {
+    where.allowInviteAccess = true;
+  } else if (accessMode === "request") {
+    where.allowAccessRequest = true;
+  }
+
+  const [total, services] = await prisma.$transaction([
+    prisma.serviceApp.count({ where }),
+    prisma.serviceApp.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        access: {
+          where: { allowed: true },
+          select: { id: true }
+        }
+      },
+      skip,
+      take: pageSize
+    })
+  ]);
 
   return {
+    total,
     services: services.map((service) => ({
       id: service.id,
       name: service.name,
