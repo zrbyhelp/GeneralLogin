@@ -130,6 +130,7 @@ model ServiceApp {
   authCodes          ServiceAuthCode[]
   inviteCodes        InviteCodeService[]
   feedbacks          Feedback[]
+  announcements      Announcement[]
 
   @@index([enabled])
 }
@@ -218,6 +219,23 @@ model OpenSourceCredit {
 
   @@index([enabled])
   @@index([sortOrder])
+}
+
+model Announcement {
+  id        String      @id @default(cuid())
+  title     String
+  content   String      @db.Text
+  serviceId String?
+  enabled   Boolean     @default(true)
+  sortOrder Int         @default(0)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  service   ServiceApp? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([enabled])
+  @@index([serviceId])
+  @@index([sortOrder])
+  @@index([createdAt])
 }
 
 model Feedback {

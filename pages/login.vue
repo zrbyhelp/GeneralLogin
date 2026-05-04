@@ -124,9 +124,6 @@
         </div>
 
         <p v-if="errorMessage" class="error-text">{{ errorMessage }}</p>
-        <p class="muted small-note">
-          {{ t("login.securityNote") }}
-        </p>
       </div>
     </section>
 

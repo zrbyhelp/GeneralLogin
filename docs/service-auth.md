@@ -146,7 +146,43 @@ userId=user_profile_id
 file=@avatar.png
 ```
 
-## 6. 第三方文件上传
+## 6. 获取网站公告
+
+管理员可以在后台创建全站公告，或只指定给某个网站。接入网站服务端用 `clientId + clientSecret` 获取当前网站可见公告，响应会同时包含全站公告和该网站专属公告。
+
+```http
+POST https://zrg.zrbyhelp.com/api/service-auth/announcements
+Content-Type: application/json
+
+{
+  "clientId": "svc_xxx",
+  "clientSecret": "sk_xxx"
+}
+```
+
+成功响应：
+
+```json
+{
+  "ok": true,
+  "announcements": [
+    {
+      "id": "cm...",
+      "title": "系统维护通知",
+      "content": "今晚 23:00-23:30 进行维护。",
+      "scope": "global",
+      "serviceId": null,
+      "sortOrder": 0,
+      "createdAt": "2026-05-04T00:00:00.000Z",
+      "updatedAt": "2026-05-04T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+`scope` 为 `global` 表示全站公告，为 `service` 表示只面向当前网站。
+
+## 7. 第三方文件上传
 
 接入网站不要直接使用 MinIO 凭据。服务端用 `clientId + clientSecret` 调用统一上传接口，文件会存到 `services/{serviceId}/...` 路径下，单文件最大 10MB。
 
@@ -163,13 +199,13 @@ file=@report.pdf
 
 `userId` 可选；传入时门户会校验该用户仍可访问当前服务。成功响应包含 `file.url`、`file.objectName`、`file.size` 和 `file.contentType`。`NUXT_MINIO_PUBLIC_BASE_URL` 应配置为外部可访问地址，线上可配置为 `https://minio.zrbyhelp.com/zr-access-portal`。
 
-## 7. 邀请码与申请
+## 8. 邀请码与申请
 
 邀请码由管理员创建，可以同时绑定多个网站。用户使用后会一次获得这些网站的权限，但只对仍启用且开放邀请码的网站生效。
 
 申请审核按单个网站处理。管理员通过申请后，只授予该网站权限，不会改变用户对其他网站的访问权限。
 
-## 8. 重新登录
+## 9. 重新登录
 
 当外部服务希望用户重新登录，或本地 session 过期时，跳转到：
 
@@ -179,7 +215,7 @@ https://zrg.zrbyhelp.com/relogin?client_id=svc_xxx&callback=https%3A%2F%2Fapp.ex
 
 门户会先退出当前本地 session，再回到 `/login` 继续标准授权流程。
 
-## 9. 投诉建议弹窗
+## 10. 投诉建议弹窗
 
 三方系统可以在页面内打开门户统一反馈页：
 
@@ -194,7 +230,7 @@ window.open(
 
 推荐传入 `service_slug` 和 `source_url`，便于后台按网站和来源页面处理。
 
-## 10. Linux.do 第三方登录
+## 11. Linux.do 第三方登录
 
 在 Linux.do Connect 创建应用，并把回调地址配置为：
 
@@ -216,7 +252,7 @@ NUXT_LINUXDO_USER_URL="https://connect.linux.do/api/user"
 
 管理员账号建议使用门户账号密码注册，并配置在 `NUXT_ADMIN_ACCOUNTS`。旧的 `NUXT_ADMIN_EMAILS` 仍保留兼容已有邮箱管理员。
 
-## 11. 安全约束
+## 12. 安全约束
 
 - `clientSecret` 只存服务端，泄漏后需要在 `/admin` 轮换密钥。
 - MinIO 的 `accessKey/secretKey` 只配置在门户服务端，不提供给第三方网站前端或后端。

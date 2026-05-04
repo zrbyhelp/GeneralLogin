@@ -418,6 +418,83 @@
             </div>
           </el-tab-pane>
 
+          <el-tab-pane :label="t('admin.tabAnnouncements')" name="announcements">
+            <div class="admin-toolbar">
+              <button class="primary-btn compact-admin-btn" type="button" @click="openAnnouncementCreate">
+                {{ t("admin.createAnnouncement") }}
+              </button>
+              <input
+                v-model="announcementQuery.q"
+                class="field-input admin-search"
+                :placeholder="t('admin.announcementSearchPlaceholder')"
+                @keyup.enter="applyFilters(announcementQuery)"
+              />
+              <select v-model="announcementQuery.enabled" class="field-input admin-filter" @change="applyFilters(announcementQuery)">
+                <option value="">{{ t("admin.allEnabledStates") }}</option>
+                <option value="enabled">{{ t("common.enabled") }}</option>
+                <option value="disabled">{{ t("common.disabled") }}</option>
+              </select>
+              <select v-model="announcementQuery.serviceId" class="field-input admin-filter" @change="applyFilters(announcementQuery)">
+                <option value="">{{ t("admin.allServices") }}</option>
+                <option :value="globalAnnouncementServiceId">{{ t("admin.announcementAllServices") }}</option>
+                <option v-for="service in serviceOptions" :key="service.id" :value="service.id">
+                  {{ service.name }}
+                </option>
+              </select>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="applyFilters(announcementQuery)">
+                {{ t("common.search") }}
+              </button>
+              <button class="ghost-btn compact-admin-btn" type="button" @click="resetFilters(announcementQuery)">
+                {{ t("common.reset") }}
+              </button>
+            </div>
+
+            <el-table v-loading="loading" :data="announcements" stripe>
+              <el-table-column :label="t('admin.announcementTitle')" min-width="210">
+                <template #default="{ row }">
+                  <strong>{{ row.title }}</strong>
+                  <div class="muted">{{ formatDateTime(row.createdAt) }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('admin.announcementContent')" min-width="320">
+                <template #default="{ row }">
+                  <div class="feedback-content">{{ row.content }}</div>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('admin.announcementScope')" min-width="170">
+                <template #default="{ row }">
+                  <el-tag :type="row.serviceId ? 'info' : 'success'">
+                    {{ row.service?.name || t("admin.announcementAllServices") }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="sortOrder" :label="t('admin.sortOrder')" width="110" />
+              <el-table-column :label="t('common.status')" width="120">
+                <template #default="{ row }">
+                  <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? t("common.enabled") : t("common.disabled") }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column :label="t('common.actions')" width="170" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" @click="openAnnouncementEdit(row)">{{ t("common.edit") }}</el-button>
+                  <el-button size="small" type="danger" plain @click="deleteAnnouncement(row.id)">{{ t("common.delete") }}</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div class="admin-pagination">
+              <el-pagination
+                background
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="announcementQuery.total"
+                :current-page="announcementQuery.page"
+                :page-size="announcementQuery.pageSize"
+                :page-sizes="pageSizes"
+                @current-change="setPage(announcementQuery, $event)"
+                @size-change="setPageSize(announcementQuery, $event)"
+              />
+            </div>
+          </el-tab-pane>
+
           <el-tab-pane :label="t('admin.tabOpenSource')" name="open-source">
             <div class="admin-toolbar">
               <button class="primary-btn compact-admin-btn" type="button" @click="openOpenSourceCreate">
@@ -653,6 +730,54 @@
     </el-dialog>
 
     <el-dialog
+      v-model="announcementDialogVisible"
+      :title="announcementForm.id ? t('admin.editAnnouncement') : t('admin.createAnnouncement')"
+      width="640px"
+    >
+      <div class="form-grid admin-form-grid">
+        <label>
+          <span class="field-label">{{ t("admin.announcementTitle") }}</span>
+          <input
+            v-model="announcementForm.title"
+            class="field-input"
+            :placeholder="t('admin.announcementTitlePlaceholder')"
+          />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.announcementService") }}</span>
+          <select v-model="announcementForm.serviceId" class="field-input">
+            <option value="">{{ t("admin.announcementAllServices") }}</option>
+            <option v-for="service in serviceOptions" :key="service.id" :value="service.id">
+              {{ service.name }}
+            </option>
+          </select>
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.sortOrder") }}</span>
+          <input v-model.number="announcementForm.sortOrder" class="field-input" type="number" />
+        </label>
+        <label class="checkbox-line">
+          <input v-model="announcementForm.enabled" type="checkbox" />
+          <span>{{ t("common.enabled") }}</span>
+        </label>
+        <label class="wide-field">
+          <span class="field-label">{{ t("admin.announcementContent") }}</span>
+          <textarea
+            v-model="announcementForm.content"
+            class="field-textarea"
+            :placeholder="t('admin.announcementContentPlaceholder')"
+          />
+        </label>
+      </div>
+      <template #footer>
+        <button class="ghost-btn" type="button" @click="announcementDialogVisible = false">{{ t("common.cancel") }}</button>
+        <button class="primary-btn" type="button" @click="saveAnnouncement">
+          {{ announcementForm.id ? t("common.save") : t("admin.createAnnouncement") }}
+        </button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
       v-model="openSourceDialogVisible"
       :title="openSourceForm.id ? t('admin.editOpenSource') : t('admin.createOpenSource')"
       width="560px"
@@ -750,6 +875,7 @@ const loading = ref(true);
 const errorMessage = ref("");
 const { t, localizeError, locale } = usePortalI18n();
 const pageSizes = [10, 20, 50, 100];
+const globalAnnouncementServiceId = "__global";
 const summary = reactive({
   users: 0,
   suspendedUsers: 0,
@@ -784,12 +910,14 @@ const services = ref<any[]>([]);
 const invites = ref<any[]>([]);
 const requests = ref<any[]>([]);
 const openSourceCredits = ref<any[]>([]);
+const announcements = ref<any[]>([]);
 const feedbackList = ref<any[]>([]);
 const serviceOptions = ref<ServiceOption[]>([]);
 const lastInviteCode = ref("");
 const lastServiceSecret = ref("");
 const inviteDialogVisible = ref(false);
 const serviceDialogVisible = ref(false);
+const announcementDialogVisible = ref(false);
 const openSourceDialogVisible = ref(false);
 
 const requestQuery = reactive({
@@ -831,6 +959,14 @@ const openSourceQuery = reactive({
   q: "",
   enabled: ""
 });
+const announcementQuery = reactive({
+  page: 1,
+  pageSize: 10,
+  total: 0,
+  q: "",
+  enabled: "",
+  serviceId: ""
+});
 const feedbackQuery = reactive({
   page: 1,
   pageSize: 10,
@@ -867,6 +1003,15 @@ const openSourceForm = reactive({
   id: "",
   name: "",
   url: "",
+  sortOrder: 0,
+  enabled: true
+});
+
+const announcementForm = reactive({
+  id: "",
+  title: "",
+  content: "",
+  serviceId: "",
   sortOrder: 0,
   enabled: true
 });
@@ -1065,6 +1210,7 @@ async function loadAll() {
       serviceResult,
       inviteResult,
       requestResult,
+      announcementResult,
       openSourceResult,
       feedbackResult,
       serviceOptionResult
@@ -1074,6 +1220,7 @@ async function loadAll() {
       $fetch<{ services: any[]; total: number }>("/api/admin/services", { query: listQueryParams(serviceQuery) }),
       $fetch<{ invites: any[]; total: number }>("/api/admin/invites", { query: listQueryParams(inviteQuery) }),
       $fetch<{ requests: any[]; total: number }>("/api/admin/requests", { query: listQueryParams(requestQuery) }),
+      $fetch<{ announcements: any[]; total: number }>("/api/admin/announcements", { query: listQueryParams(announcementQuery) }),
       $fetch<{ credits: any[]; total: number }>("/api/admin/open-source-credits", { query: listQueryParams(openSourceQuery) }),
       $fetch<{ feedback: any[]; total: number }>("/api/admin/feedback", { query: listQueryParams(feedbackQuery) }),
       $fetch<{ services: ServiceOption[] }>("/api/admin/service-options")
@@ -1088,6 +1235,8 @@ async function loadAll() {
     inviteQuery.total = inviteResult.total;
     requests.value = requestResult.requests;
     requestQuery.total = requestResult.total;
+    announcements.value = announcementResult.announcements;
+    announcementQuery.total = announcementResult.total;
     openSourceCredits.value = openSourceResult.credits;
     openSourceQuery.total = openSourceResult.total;
     feedbackList.value = feedbackResult.feedback;
@@ -1101,21 +1250,29 @@ async function loadAll() {
 }
 
 async function updateUser(id: string, status: UserStatus) {
-  await $fetch(`/api/admin/users/${id}`, {
-    method: "PATCH",
-    body: { status }
-  });
-  ElMessage.success(t("notice.userStatusUpdated"));
-  await loadAll();
+  try {
+    await $fetch(`/api/admin/users/${id}`, {
+      method: "PATCH",
+      body: { status }
+    });
+    ElMessage.success(t("notice.userStatusUpdated"));
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
+  }
 }
 
 async function reviewRequest(id: string, status: RequestStatus) {
-  await $fetch(`/api/admin/requests/${id}`, {
-    method: "PATCH",
-    body: { status }
-  });
-  ElMessage.success(status === "APPROVED" ? t("notice.requestApproved") : t("notice.requestRejected"));
-  await loadAll();
+  try {
+    await $fetch(`/api/admin/requests/${id}`, {
+      method: "PATCH",
+      body: { status }
+    });
+    ElMessage.success(status === "APPROVED" ? t("notice.requestApproved") : t("notice.requestRejected"));
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
+  }
 }
 
 function resetInviteForm() {
@@ -1131,22 +1288,26 @@ function openInviteCreate() {
 }
 
 async function createInvite() {
-  const result = await $fetch<{ code: string }>("/api/admin/invites", {
-    method: "POST",
-    body: {
-      label: inviteForm.label,
-      maxUses: inviteForm.maxUses,
-      expiresAt: inviteForm.expiresAt || undefined,
-      serviceIds: inviteForm.serviceIds
-    }
-  });
+  try {
+    const result = await $fetch<{ code: string }>("/api/admin/invites", {
+      method: "POST",
+      body: {
+        label: inviteForm.label,
+        maxUses: inviteForm.maxUses,
+        expiresAt: inviteForm.expiresAt || undefined,
+        serviceIds: inviteForm.serviceIds
+      }
+    });
 
-  lastInviteCode.value = result.code;
-  resetInviteForm();
-  inviteDialogVisible.value = false;
-  inviteQuery.page = 1;
-  ElMessage.success(t("notice.inviteCreated"));
-  await loadAll();
+    lastInviteCode.value = result.code;
+    resetInviteForm();
+    inviteDialogVisible.value = false;
+    inviteQuery.page = 1;
+    ElMessage.success(t("notice.inviteCreated"));
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
+  }
 }
 
 function resetServiceForm() {
@@ -1186,62 +1347,143 @@ function openServiceEdit(row: any) {
 }
 
 async function saveService() {
-  const body = {
-    name: serviceForm.name,
-    slug: serviceForm.slug,
-    description: serviceForm.description,
-    homeUrl: serviceForm.homeUrl,
-    healthCheckUrl: serviceForm.healthCheckUrl,
-    docsUrl: serviceForm.docsUrl,
-    callbackUrls: splitCallbackUrls(serviceForm.callbackUrlsText),
-    enabled: serviceForm.enabled,
-    allowDirectAccess: serviceForm.allowDirectAccess,
-    allowInviteAccess: serviceForm.allowInviteAccess,
-    allowAccessRequest: serviceForm.allowAccessRequest
-  };
+  try {
+    const body = {
+      name: serviceForm.name,
+      slug: serviceForm.slug,
+      description: serviceForm.description,
+      homeUrl: serviceForm.homeUrl,
+      healthCheckUrl: serviceForm.healthCheckUrl,
+      docsUrl: serviceForm.docsUrl,
+      callbackUrls: splitCallbackUrls(serviceForm.callbackUrlsText),
+      enabled: serviceForm.enabled,
+      allowDirectAccess: serviceForm.allowDirectAccess,
+      allowInviteAccess: serviceForm.allowInviteAccess,
+      allowAccessRequest: serviceForm.allowAccessRequest
+    };
 
-  if (serviceForm.id) {
-    await $fetch(`/api/admin/services/${serviceForm.id}`, {
-      method: "PATCH",
-      body
-    });
-    ElMessage.success(t("notice.serviceSaved"));
-  } else {
-    const result = await $fetch<{ clientSecret: string }>("/api/admin/services", {
-      method: "POST",
-      body
-    });
-    lastServiceSecret.value = result.clientSecret;
-    serviceQuery.page = 1;
-    ElMessage.success(t("notice.serviceCreated"));
+    if (serviceForm.id) {
+      await $fetch(`/api/admin/services/${serviceForm.id}`, {
+        method: "PATCH",
+        body
+      });
+      ElMessage.success(t("notice.serviceSaved"));
+    } else {
+      const result = await $fetch<{ clientSecret: string }>("/api/admin/services", {
+        method: "POST",
+        body
+      });
+      lastServiceSecret.value = result.clientSecret;
+      serviceQuery.page = 1;
+      ElMessage.success(t("notice.serviceCreated"));
+    }
+
+    resetServiceForm();
+    serviceDialogVisible.value = false;
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
   }
-
-  resetServiceForm();
-  serviceDialogVisible.value = false;
-  await loadAll();
 }
 
 async function updateService(row: any) {
-  await $fetch(`/api/admin/services/${row.id}`, {
-    method: "PATCH",
-    body: {
-      enabled: row.enabled,
-      allowDirectAccess: row.allowDirectAccess,
-      allowInviteAccess: row.allowInviteAccess,
-      allowAccessRequest: row.allowAccessRequest
-    }
-  });
-  ElMessage.success(t("notice.serviceUpdated"));
-  await loadAll();
+  try {
+    await $fetch(`/api/admin/services/${row.id}`, {
+      method: "PATCH",
+      body: {
+        enabled: row.enabled,
+        allowDirectAccess: row.allowDirectAccess,
+        allowInviteAccess: row.allowInviteAccess,
+        allowAccessRequest: row.allowAccessRequest
+      }
+    });
+    ElMessage.success(t("notice.serviceUpdated"));
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
+    await loadAll();
+  }
 }
 
 async function rotateSecret(id: string) {
-  const result = await $fetch<{ clientSecret: string }>(
-    `/api/admin/services/${id}/secret`,
-    { method: "POST" }
-  );
-  lastServiceSecret.value = result.clientSecret;
-  ElMessage.success(t("notice.secretRotated"));
+  try {
+    const result = await $fetch<{ clientSecret: string }>(
+      `/api/admin/services/${id}/secret`,
+      { method: "POST" }
+    );
+    lastServiceSecret.value = result.clientSecret;
+    ElMessage.success(t("notice.secretRotated"));
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
+  }
+}
+
+function resetAnnouncementForm() {
+  announcementForm.id = "";
+  announcementForm.title = "";
+  announcementForm.content = "";
+  announcementForm.serviceId = "";
+  announcementForm.sortOrder = 0;
+  announcementForm.enabled = true;
+}
+
+function openAnnouncementCreate() {
+  resetAnnouncementForm();
+  announcementDialogVisible.value = true;
+}
+
+function openAnnouncementEdit(row: any) {
+  announcementForm.id = row.id;
+  announcementForm.title = row.title || "";
+  announcementForm.content = row.content || "";
+  announcementForm.serviceId = row.serviceId || "";
+  announcementForm.sortOrder = row.sortOrder || 0;
+  announcementForm.enabled = row.enabled !== false;
+  announcementDialogVisible.value = true;
+}
+
+async function saveAnnouncement() {
+  try {
+    const body = {
+      title: announcementForm.title,
+      content: announcementForm.content,
+      serviceId: announcementForm.serviceId || null,
+      sortOrder: announcementForm.sortOrder,
+      enabled: announcementForm.enabled
+    };
+
+    if (announcementForm.id) {
+      await $fetch(`/api/admin/announcements/${announcementForm.id}`, {
+        method: "PATCH",
+        body
+      });
+    } else {
+      await $fetch("/api/admin/announcements", {
+        method: "POST",
+        body
+      });
+      announcementQuery.page = 1;
+    }
+
+    resetAnnouncementForm();
+    announcementDialogVisible.value = false;
+    ElMessage.success(t("notice.announcementSaved"));
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.announcementFailed"));
+  }
+}
+
+async function deleteAnnouncement(id: string) {
+  try {
+    await $fetch(`/api/admin/announcements/${id}`, {
+      method: "DELETE"
+    });
+    ElMessage.success(t("notice.announcementDeleted"));
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
+  }
 }
 
 function resetOpenSourceForm() {
@@ -1297,20 +1539,28 @@ async function saveOpenSourceCredit() {
 }
 
 async function deleteOpenSourceCredit(id: string) {
-  await $fetch(`/api/admin/open-source-credits/${id}`, {
-    method: "DELETE"
-  });
-  ElMessage.success(t("notice.openSourceDeleted"));
-  await loadAll();
+  try {
+    await $fetch(`/api/admin/open-source-credits/${id}`, {
+      method: "DELETE"
+    });
+    ElMessage.success(t("notice.openSourceDeleted"));
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
+  }
 }
 
 async function updateFeedback(id: string, status: FeedbackStatus) {
-  await $fetch(`/api/admin/feedback/${id}`, {
-    method: "PATCH",
-    body: { status }
-  });
-  ElMessage.success(t("notice.feedbackUpdated"));
-  await loadAll();
+  try {
+    await $fetch(`/api/admin/feedback/${id}`, {
+      method: "PATCH",
+      body: { status }
+    });
+    ElMessage.success(t("notice.feedbackUpdated"));
+    await loadAll();
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.operationFailed"));
+  }
 }
 
 async function loadServerInfo() {

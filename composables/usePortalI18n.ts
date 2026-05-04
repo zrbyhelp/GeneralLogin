@@ -62,7 +62,6 @@ const messages = {
     "login.accountRegister": "账号注册",
     "login.or": "或",
     "login.linuxdoLogin": "使用 Linux.do 登录",
-    "login.securityNote": "新用户注册或第三方登录后，仍需要邀请码或管理员审核才能访问服务。",
     "login.unknownService": "未指定服务",
     "login.serviceOnline": "在线",
     "login.serviceOffline": "异常",
@@ -172,6 +171,7 @@ const messages = {
     "admin.tabUsers": "用户管理",
     "admin.tabInvites": "邀请码",
     "admin.tabServices": "网站服务",
+    "admin.tabAnnouncements": "公告管理",
     "admin.tabOpenSource": "开源感谢",
     "admin.tabFeedback": "投诉建议",
     "admin.requestMessage": "说明",
@@ -189,6 +189,7 @@ const messages = {
     "admin.uses": "使用",
     "admin.authorizedServices": "授权网站",
     "admin.createdBy": "创建人",
+    "admin.createdAt": "创建时间",
     "admin.serviceName": "服务名称",
     "admin.serviceNamePlaceholder": "Docs / CRM / Demo",
     "admin.homeUrl": "入口地址",
@@ -218,6 +219,15 @@ const messages = {
     "admin.openSourceUrl": "开源地址",
     "admin.sortOrder": "排序",
     "admin.createOpenSource": "添加开源项",
+    "admin.announcementTitle": "公告标题",
+    "admin.announcementTitlePlaceholder": "例如：系统维护通知",
+    "admin.announcementContent": "公告内容",
+    "admin.announcementContentPlaceholder": "给接入网站展示的公告内容",
+    "admin.announcementService": "适用网站",
+    "admin.announcementAllServices": "全部网站",
+    "admin.announcementScope": "范围",
+    "admin.createAnnouncement": "添加公告",
+    "admin.editAnnouncement": "编辑公告",
     "admin.feedbackType": "类型",
     "admin.feedbackContent": "内容",
     "admin.feedbackContact": "联系方式",
@@ -236,6 +246,7 @@ const messages = {
     "admin.userSearchPlaceholder": "搜索账号、邮箱、用户名或姓名",
     "admin.inviteSearchPlaceholder": "搜索邀请码名称或创建人",
     "admin.serviceSearchPlaceholder": "搜索服务名称、Slug、Client ID 或地址",
+    "admin.announcementSearchPlaceholder": "搜索公告标题或内容",
     "admin.openSourceSearchPlaceholder": "搜索开源名称或地址",
     "admin.feedbackSearchPlaceholder": "搜索反馈内容、联系方式、用户或服务",
     "admin.editOpenSource": "编辑开源项",
@@ -268,6 +279,8 @@ const messages = {
     "notice.secretRotated": "服务密钥已轮换，请立即保存新密钥",
     "notice.openSourceSaved": "开源感谢项已保存",
     "notice.openSourceDeleted": "开源感谢项已删除",
+    "notice.announcementSaved": "公告已保存",
+    "notice.announcementDeleted": "公告已删除",
     "notice.feedbackUpdated": "反馈状态已更新",
     "notice.invalidHomeUrl": "服务入口地址配置无效，请联系管理员",
 
@@ -286,6 +299,8 @@ const messages = {
     "error.passwordFailed": "密码修改失败",
     "error.feedbackFailed": "反馈提交失败",
     "error.openSourceFailed": "开源感谢项保存失败",
+    "error.announcementFailed": "公告保存失败",
+    "error.operationFailed": "操作失败",
     "error.unauthenticated": "未登录",
     "error.suspended": "账号已停用",
     "error.invalidPassword": "当前密码错误"
@@ -344,7 +359,6 @@ const messages = {
     "login.accountRegister": "Create account",
     "login.or": "or",
     "login.linuxdoLogin": "Continue with Linux.do",
-    "login.securityNote": "New users still need an invite code or admin review before they can access services.",
     "login.unknownService": "Unspecified service",
     "login.serviceOnline": "Online",
     "login.serviceOffline": "Offline",
@@ -454,6 +468,7 @@ const messages = {
     "admin.tabUsers": "Users",
     "admin.tabInvites": "Invites",
     "admin.tabServices": "Websites",
+    "admin.tabAnnouncements": "Announcements",
     "admin.tabOpenSource": "Open-source Credits",
     "admin.tabFeedback": "Feedback",
     "admin.requestMessage": "Message",
@@ -471,6 +486,7 @@ const messages = {
     "admin.uses": "Uses",
     "admin.authorizedServices": "Granted websites",
     "admin.createdBy": "Created by",
+    "admin.createdAt": "Created at",
     "admin.serviceName": "Service name",
     "admin.serviceNamePlaceholder": "Docs / CRM / Demo",
     "admin.homeUrl": "Home URL",
@@ -500,6 +516,15 @@ const messages = {
     "admin.openSourceUrl": "Open-source URL",
     "admin.sortOrder": "Sort order",
     "admin.createOpenSource": "Add credit",
+    "admin.announcementTitle": "Announcement title",
+    "admin.announcementTitlePlaceholder": "Example: Scheduled maintenance",
+    "admin.announcementContent": "Announcement content",
+    "admin.announcementContentPlaceholder": "Content shown by connected websites",
+    "admin.announcementService": "Target website",
+    "admin.announcementAllServices": "All websites",
+    "admin.announcementScope": "Scope",
+    "admin.createAnnouncement": "Add announcement",
+    "admin.editAnnouncement": "Edit announcement",
     "admin.feedbackType": "Type",
     "admin.feedbackContent": "Content",
     "admin.feedbackContact": "Contact",
@@ -518,6 +543,7 @@ const messages = {
     "admin.userSearchPlaceholder": "Search account, email, username, or name",
     "admin.inviteSearchPlaceholder": "Search invite label or creator",
     "admin.serviceSearchPlaceholder": "Search service name, slug, Client ID, or URL",
+    "admin.announcementSearchPlaceholder": "Search announcement title or content",
     "admin.openSourceSearchPlaceholder": "Search credit name or URL",
     "admin.feedbackSearchPlaceholder": "Search content, contact, user, or service",
     "admin.editOpenSource": "Edit credit",
@@ -550,6 +576,8 @@ const messages = {
     "notice.secretRotated": "Service secret rotated. Save the new secret now.",
     "notice.openSourceSaved": "Open-source credit saved",
     "notice.openSourceDeleted": "Open-source credit deleted",
+    "notice.announcementSaved": "Announcement saved",
+    "notice.announcementDeleted": "Announcement deleted",
     "notice.feedbackUpdated": "Feedback status updated",
     "notice.invalidHomeUrl": "Invalid service home URL. Contact an admin.",
 
@@ -568,6 +596,8 @@ const messages = {
     "error.passwordFailed": "Failed to change password",
     "error.feedbackFailed": "Failed to submit feedback",
     "error.openSourceFailed": "Failed to save open-source credit",
+    "error.announcementFailed": "Failed to save announcement",
+    "error.operationFailed": "Operation failed",
     "error.unauthenticated": "Not signed in",
     "error.suspended": "Account suspended",
     "error.invalidPassword": "Current password is incorrect"
@@ -602,6 +632,30 @@ function parseTheme(value: unknown): PortalTheme | null {
 
 function parseLocale(value: unknown): PortalLocale | null {
   return value === "zh" || value === "en" ? value : null;
+}
+
+function readableErrorMessage(value: unknown) {
+  if (typeof value !== "string") {
+    return "";
+  }
+
+  const message = value.trim();
+  const fetchErrorStatus = message.match(/^\[[A-Z]+\]\s+.+:\s+\d{3}\s+(.+)$/)?.[1]?.trim();
+  const genericMessages = new Set([
+    "Bad Request",
+    "Unauthorized",
+    "Forbidden",
+    "Not Found",
+    "Conflict",
+    "Internal Server Error",
+    "Server Error"
+  ]);
+
+  if (fetchErrorStatus) {
+    return genericMessages.has(fetchErrorStatus) ? "" : fetchErrorStatus;
+  }
+
+  return message && !genericMessages.has(message) ? message : "";
 }
 
 export function usePortalPreferences() {
@@ -680,11 +734,13 @@ export function usePortalI18n() {
   }
 
   function localizeError(error: any, fallbackKey: MessageKey) {
-    const raw =
-      error?.data?.statusMessage ||
-      error?.data?.message ||
-      error?.message ||
-      "";
+    const raw = [
+      error?.data?.message,
+      error?.data?.data?.message,
+      error?.data?.statusMessage,
+      error?.statusMessage,
+      error?.message
+    ].map(readableErrorMessage).find(Boolean) || "";
     const mapped = raw ? serverErrorMap[raw] : undefined;
     return mapped ? t(mapped) : raw || t(fallbackKey);
   }
