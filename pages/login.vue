@@ -27,6 +27,7 @@
           <button type="button" @click="openCredits">{{ t("login.openSourceCredits") }}</button>
           <button type="button" @click="openDocs">{{ t("login.docsList") }}</button>
           <NuxtLink to="/feedback">{{ t("login.feedback") }}</NuxtLink>
+          <DonationDialog />
           <a
             class="github-link"
             href="https://github.com/zrbyhelp"

@@ -7,6 +7,7 @@
       </div>
       <div class="action-row">
         <NuxtLink v-if="me?.isAdmin" class="ghost-btn" to="/admin">{{ t("apps.admin") }}</NuxtLink>
+        <DonationDialog />
         <ClientOnly>
           <AuthActions />
         </ClientOnly>
