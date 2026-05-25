@@ -721,14 +721,14 @@
           <span class="field-label">{{ t("admin.maxUses") }}</span>
           <input v-model.number="inviteForm.maxUses" class="field-input" type="number" min="1" />
         </label>
-        <label v-if="canBatchGenerate" class="wide-field">
+        <label class="wide-field">
           <span class="field-label">{{ t("admin.inviteGenerationMode") }}</span>
           <el-radio-group v-model="inviteGenerationMode">
             <el-radio label="single">{{ t("admin.inviteGenerationSingle") }}</el-radio>
             <el-radio label="batch">{{ t("admin.inviteGenerationBatch") }}</el-radio>
           </el-radio-group>
         </label>
-        <label v-if="canBatchGenerate && inviteGenerationMode === 'batch'">
+        <label v-if="inviteGenerationMode === 'batch'">
           <span class="field-label">{{ t("admin.inviteQuantity") }}</span>
           <input
             v-model.number="inviteQuantity"
@@ -1262,7 +1262,6 @@ const serverMetrics = computed<ServerMetric[]>(() => {
 const inviteableServices = computed(() =>
   serviceOptions.value.filter((service) => service.enabled && service.allowInviteAccess)
 );
-const canBatchGenerate = computed(() => Number(inviteForm.maxUses) > 1);
 
 function allowedServiceAccess(row: any) {
   return row.serviceAccess.filter((item: any) => item.allowed);
@@ -1322,21 +1321,6 @@ function setDonationForm(donation: DonationSetting) {
   donationForm.enabled = donation.enabled === true;
   donationUpdatedAt.value = donation.updatedAt || "";
 }
-
-watch(
-  () => inviteForm.maxUses,
-  (maxUses) => {
-    if (Number(maxUses) <= 1) {
-      inviteGenerationMode.value = "single";
-      inviteQuantity.value = 2;
-      return;
-    }
-
-    if (inviteGenerationMode.value !== "batch") {
-      inviteQuantity.value = 2;
-    }
-  }
-);
 
 function formatInviteFileStamp(date = new Date()) {
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -1467,7 +1451,7 @@ async function createInvite() {
       serviceIds: inviteForm.serviceIds
     };
 
-    if (canBatchGenerate.value && inviteGenerationMode.value === "batch") {
+    if (inviteGenerationMode.value === "batch") {
       const quantity = Math.floor(Number(inviteQuantity.value));
       if (!Number.isFinite(quantity) || quantity < 2) {
         ElMessage.error(t("error.inviteQuantityInvalid"));
