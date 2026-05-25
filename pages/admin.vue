@@ -257,7 +257,7 @@
               <button class="primary-btn compact-admin-btn" type="button" @click="openInviteCreate">
                 {{ t("admin.createInvite") }}
               </button>
-              <span v-if="lastInviteCode" class="badge badge--ok">{{ t("admin.newInvite", { code: lastInviteCode }) }}</span>
+              <span v-if="lastInviteNotice" class="badge badge--ok">{{ lastInviteNotice }}</span>
               <input
                 v-model="inviteQuery.q"
                 class="field-input admin-search"
@@ -711,7 +711,7 @@
       </section>
     </template>
 
-    <el-dialog v-model="inviteDialogVisible" :title="t('admin.createInvite')" width="640px">
+    <el-dialog v-model="inviteDialogVisible" :title="t('admin.createInvite')" width="680px">
       <div class="form-grid admin-form-grid">
         <label>
           <span class="field-label">{{ t("admin.inviteLabel") }}</span>
@@ -720,6 +720,23 @@
         <label>
           <span class="field-label">{{ t("admin.maxUses") }}</span>
           <input v-model.number="inviteForm.maxUses" class="field-input" type="number" min="1" />
+        </label>
+        <label v-if="canBatchGenerate" class="wide-field">
+          <span class="field-label">{{ t("admin.inviteGenerationMode") }}</span>
+          <el-radio-group v-model="inviteGenerationMode">
+            <el-radio label="single">{{ t("admin.inviteGenerationSingle") }}</el-radio>
+            <el-radio label="batch">{{ t("admin.inviteGenerationBatch") }}</el-radio>
+          </el-radio-group>
+        </label>
+        <label v-if="canBatchGenerate && inviteGenerationMode === 'batch'">
+          <span class="field-label">{{ t("admin.inviteQuantity") }}</span>
+          <input
+            v-model.number="inviteQuantity"
+            class="field-input"
+            type="number"
+            min="2"
+            :placeholder="t('admin.inviteQuantityPlaceholder')"
+          />
         </label>
         <label>
           <span class="field-label">{{ t("admin.expiresAt") }}</span>
@@ -998,7 +1015,6 @@ const openSourceCredits = ref<any[]>([]);
 const announcements = ref<any[]>([]);
 const feedbackList = ref<any[]>([]);
 const serviceOptions = ref<ServiceOption[]>([]);
-const lastInviteCode = ref("");
 const lastServiceSecret = ref("");
 const inviteDialogVisible = ref(false);
 const serviceDialogVisible = ref(false);
@@ -1072,6 +1088,9 @@ const inviteForm = reactive({
   expiresAt: "",
   serviceIds: [] as string[]
 });
+const inviteGenerationMode = ref<"single" | "batch">("single");
+const inviteQuantity = ref(2);
+const lastInviteNotice = ref("");
 
 const serviceForm = reactive({
   id: "",
@@ -1243,6 +1262,7 @@ const serverMetrics = computed<ServerMetric[]>(() => {
 const inviteableServices = computed(() =>
   serviceOptions.value.filter((service) => service.enabled && service.allowInviteAccess)
 );
+const canBatchGenerate = computed(() => Number(inviteForm.maxUses) > 1);
 
 function allowedServiceAccess(row: any) {
   return row.serviceAccess.filter((item: any) => item.allowed);
@@ -1301,6 +1321,48 @@ function setDonationForm(donation: DonationSetting) {
   donationForm.imageUrls = [...(donation.imageUrls || [])].slice(0, maxDonationImages);
   donationForm.enabled = donation.enabled === true;
   donationUpdatedAt.value = donation.updatedAt || "";
+}
+
+watch(
+  () => inviteForm.maxUses,
+  (maxUses) => {
+    if (Number(maxUses) <= 1) {
+      inviteGenerationMode.value = "single";
+      inviteQuantity.value = 2;
+      return;
+    }
+
+    if (inviteGenerationMode.value !== "batch") {
+      inviteQuantity.value = 2;
+    }
+  }
+);
+
+function formatInviteFileStamp(date = new Date()) {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate())
+  ].join("") + `-${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
+}
+
+function downloadInviteCodes(codes: string[]) {
+  if (!codes.length) {
+    throw new Error("No invite codes to download");
+  }
+
+  const content = `${codes.join("\n")}\n`;
+  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `invite-codes-${formatInviteFileStamp()}.txt`;
+  link.style.display = "none";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 async function loadAll() {
@@ -1387,6 +1449,8 @@ function resetInviteForm() {
   inviteForm.maxUses = 1;
   inviteForm.expiresAt = "";
   inviteForm.serviceIds = [];
+  inviteGenerationMode.value = "single";
+  inviteQuantity.value = 2;
 }
 
 function openInviteCreate() {
@@ -1396,21 +1460,58 @@ function openInviteCreate() {
 
 async function createInvite() {
   try {
-    const result = await $fetch<{ code: string }>("/api/admin/invites", {
-      method: "POST",
-      body: {
-        label: inviteForm.label,
-        maxUses: inviteForm.maxUses,
-        expiresAt: inviteForm.expiresAt || undefined,
-        serviceIds: inviteForm.serviceIds
+    const body: Record<string, string | number | string[] | undefined> = {
+      label: inviteForm.label,
+      maxUses: inviteForm.maxUses,
+      expiresAt: inviteForm.expiresAt || undefined,
+      serviceIds: inviteForm.serviceIds
+    };
+
+    if (canBatchGenerate.value && inviteGenerationMode.value === "batch") {
+      const quantity = Math.floor(Number(inviteQuantity.value));
+      if (!Number.isFinite(quantity) || quantity < 2) {
+        ElMessage.error(t("error.inviteQuantityInvalid"));
+        return;
       }
+
+      if (quantity > 500) {
+        ElMessage.error(t("error.inviteQuantityTooLarge", { max: 500 }));
+        return;
+      }
+
+      body.generationMode = "batch";
+      body.quantity = quantity;
+    }
+
+    const result = await $fetch<{ code?: string; codes?: string[]; createdCount?: number }>("/api/admin/invites", {
+      method: "POST",
+      body
     });
 
-    lastInviteCode.value = result.code;
+    if (result.codes?.length) {
+      try {
+        downloadInviteCodes(result.codes);
+      } catch {
+        ElMessage.error(t("error.inviteDownloadFailed"));
+      }
+      lastInviteNotice.value = t("admin.batchInviteReady", {
+        count: result.createdCount || result.codes.length
+      });
+      ElMessage.success(
+        t("notice.inviteBatchCreated", {
+          count: result.createdCount || result.codes.length
+        })
+      );
+    } else if (result.code) {
+      lastInviteNotice.value = t("admin.newInvite", { code: result.code });
+      ElMessage.success(t("notice.inviteCreated"));
+    } else {
+      throw new Error("Invalid invite response");
+    }
+
     resetInviteForm();
     inviteDialogVisible.value = false;
     inviteQuery.page = 1;
-    ElMessage.success(t("notice.inviteCreated"));
     await loadAll();
   } catch (error: any) {
     ElMessage.error(localizeError(error, "error.operationFailed"));

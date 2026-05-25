@@ -11,6 +11,8 @@ export default defineEventHandler(async (event) => {
     maxUses?: number;
     expiresAt?: string;
     serviceIds?: string[];
+    generationMode?: "single" | "batch";
+    quantity?: number;
   }>(event);
 
   const label = body.label?.trim();
@@ -41,29 +43,75 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const code = `ZR-${generateToken(12).toUpperCase()}`;
-  const invite = await prisma.inviteCode.create({
-    data: {
-      label,
-      codeHash: sha256(code),
-      maxUses: Math.max(1, Number(body.maxUses || 1)),
-      expiresAt: body.expiresAt ? new Date(body.expiresAt) : null,
-      createdById: admin.profile.id,
-      services: {
-        create: services.map((service) => ({
-          serviceId: service.id
-        }))
-      }
+  const maxUses = Math.max(1, Math.floor(Number(body.maxUses || 1)));
+  const generationMode = body.generationMode === "batch" ? "batch" : "single";
+  const rawQuantity = Number(body.quantity || 0);
+  const quantity = generationMode === "batch" ? Math.floor(rawQuantity) : 1;
+
+  if (generationMode === "batch") {
+    if (!Number.isFinite(rawQuantity) || quantity < 2) {
+      throw createError({ statusCode: 400, statusMessage: "批量生成数量至少为 2" });
     }
+
+    if (quantity > 500) {
+      throw createError({ statusCode: 400, statusMessage: "批量生成数量不能超过 500" });
+    }
+  }
+
+  const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null;
+  if (expiresAt && Number.isNaN(expiresAt.getTime())) {
+    throw createError({ statusCode: 400, statusMessage: "过期时间格式无效" });
+  }
+
+  const codes: string[] = [];
+  const invites = await prisma.$transaction(async (tx) => {
+    const createdInvites: Array<{ id: string }> = [];
+
+    for (let index = 0; index < quantity; index += 1) {
+      const code = `ZR-${generateToken(12).toUpperCase()}`;
+      const invite = await tx.inviteCode.create({
+        data: {
+          label,
+          codeHash: sha256(code),
+          maxUses,
+          expiresAt,
+          createdById: admin.profile.id,
+          services: {
+            create: services.map((service) => ({
+              serviceId: service.id
+            }))
+          }
+        }
+      });
+
+      createdInvites.push(invite);
+      codes.push(code);
+    }
+
+    return createdInvites;
   });
 
   await writeAuditLog({
     actorId: admin.profile.id,
     action: "admin.invite.created",
     targetType: "InviteCode",
-    targetId: invite.id,
-    metadata: { label, serviceIds: services.map((service) => service.id) }
+    targetId: invites[0]?.id || "",
+    metadata: {
+      label,
+      serviceIds: services.map((service) => service.id),
+      generationMode,
+      quantity,
+      maxUses
+    }
   });
 
-  return { invite, code };
+  if (generationMode === "batch") {
+    return {
+      invites,
+      codes,
+      createdCount: invites.length
+    };
+  }
+
+  return { invite: invites[0], code: codes[0] };
 });
