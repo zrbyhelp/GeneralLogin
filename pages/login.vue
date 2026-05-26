@@ -89,14 +89,14 @@
             </div>
           </div>
 
-          <button class="primary-btn auth-submit" type="submit" :disabled="submitting || !agreementAccepted">
+          <button class="primary-btn auth-submit" type="submit" :disabled="submitting">
             {{ mode === "login" ? t("login.accountLogin") : t("login.accountRegister") }}
           </button>
         </form>
 
         <div class="divider"><span>{{ t("login.or") }}</span></div>
 
-        <button class="linuxdo-btn" type="button" :disabled="submitting || !agreementAccepted" @click="startLinuxdoLogin">
+        <button class="linuxdo-btn" type="button" :disabled="submitting" @click="startLinuxdoLogin">
           {{ t("login.linuxdoLogin") }}
         </button>
 
