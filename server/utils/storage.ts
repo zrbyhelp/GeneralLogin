@@ -174,28 +174,6 @@ export async function uploadUserAvatarFile(params: {
   };
 }
 
-export async function uploadDonationImageFile(params: {
-  adminId: string;
-  file: UploadedFile | null;
-}) {
-  validateImageUpload(params.file);
-  await ensureBucketExists();
-
-  const { client, bucket, publicBaseUrl } = getClient();
-  const ext = getFileExtension(params.file);
-  const objectName = `donations/${params.adminId}/${Date.now()}-${generateToken(8)}.${ext}`;
-
-  await client.putObject(bucket, objectName, params.file.data, params.file.data.length, {
-    "Content-Type": params.file.type || "application/octet-stream"
-  });
-
-  return {
-    bucket,
-    objectName,
-    url: buildPublicObjectUrl(objectName, publicBaseUrl, bucket)
-  };
-}
-
 export async function uploadServiceFile(params: {
   serviceId: string;
   file: UploadedFile | null;

@@ -93,15 +93,6 @@ Compose 会启动 `app`、`mysql`、`minio` 和 `minio-init`。应用容器启�
 - `/admin`: 管理后台，服务端通过本地 session 和 `NUXT_ADMIN_ACCOUNTS` 鉴权。
 - `/docs/`: VitePress 构建后的三方接入文档。生成静态文档：`pnpm docs:build`。
 
-## 捐赠支持
-
-感谢你的支持，捐赠将用于服务器和服务维护。
-
-同时认可并感谢 LINUX DO 社区对开源交流与分享氛围的推动。
-
-| 捐赠图片 1 | 捐赠图片 2 |
-| --- | --- |
-| <img src="捐赠/微信图片_20260511124938_184_76.jpg" alt="捐赠图片 1" width="260"> | <img src="捐赠/微信图片_20260511124939_185_76.jpg" alt="捐赠图片 2" width="260"> |
 
 ## 外部网站接入
 

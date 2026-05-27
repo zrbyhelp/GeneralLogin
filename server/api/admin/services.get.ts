@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
     prisma.serviceApp.count({ where }),
     prisma.serviceApp.findMany({
       where,
-      orderBy: { createdAt: "desc" },
+      orderBy: [{ showcaseOrder: "asc" }, { createdAt: "desc" }],
       include: {
         access: {
           where: { allowed: true },

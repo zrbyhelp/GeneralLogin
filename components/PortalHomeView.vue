@@ -7,8 +7,27 @@
       </NuxtLink>
       <nav class="portal-nav__links" aria-label="portal links">
         <button type="button" @click="scrollToApps">{{ t("portal.apps") }}</button>
-        <NuxtLink to="/feedback">{{ t("login.feedback") }}</NuxtLink>
-        <a href="/docs/" target="_blank" rel="noreferrer">{{ t("login.docsList") }}</a>
+        <button type="button" @click="feedbackVisible = true">{{ t("login.feedback") }}</button>
+        <div class="portal-docs" :class="{ open: docsMenuOpen }">
+          <button type="button" @click="docsMenuOpen = !docsMenuOpen">
+            {{ t("login.docsList") }}
+          </button>
+          <div v-if="docsMenuOpen" class="portal-docs__menu">
+            <a href="/docs/" target="_blank" rel="noreferrer">{{ t("portal.docsPlatform") }}</a>
+            <a
+              v-for="service in docsServices"
+              :key="service.id"
+              :href="service.docsUrl"
+              target="_blank"
+              rel="noreferrer"
+            >
+              {{ serviceTitle(service) }}{{ t("portal.docsServiceSuffix") }}
+            </a>
+            <div v-if="docsServices.length === 0" class="portal-docs__empty">
+              {{ t("login.noDocs") }}
+            </div>
+          </div>
+        </div>
       </nav>
       <div class="portal-nav__actions">
         <NuxtLink v-if="me?.isAdmin" class="ghost-btn portal-admin-link" to="/admin">{{ t("apps.admin") }}</NuxtLink>
@@ -125,13 +144,22 @@
         v-model="authVisible"
         :target-service-id="selectedService?.id"
         :target-service-name="selectedService ? serviceTitle(selectedService) : ''"
+        @authenticated="loadUser"
       />
     </ClientOnly>
+
+    <div v-if="feedbackVisible" class="portal-modal" role="dialog" aria-modal="true">
+      <button class="portal-modal__backdrop" type="button" aria-label="Close" @click="feedbackVisible = false" />
+      <section class="portal-modal__panel">
+        <FeedbackPanel embed @close="feedbackVisible = false" />
+      </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { ElMessage } from "element-plus/es/components/message/index";
+import { computed, onMounted, ref, watch } from "vue";
 
 type PortalService = {
   id: string;
@@ -148,6 +176,7 @@ type PortalService = {
   featured?: boolean;
   host?: string;
   status: "online" | "offline";
+  docsUrl?: string | null;
 };
 
 const props = defineProps<{
@@ -156,17 +185,21 @@ const props = defineProps<{
 
 const runtimeConfig = useRuntimeConfig();
 const route = useRoute();
-const { t } = usePortalI18n();
+const { t, localizeError, theme, locale } = usePortalI18n();
 const appName = computed(() => runtimeConfig.public.appName || "ZR-AI服务");
 const loading = ref(true);
 const services = ref<PortalService[]>([]);
+const feedbackVisible = ref(false);
+const docsMenuOpen = ref(false);
 const selectedService = ref<PortalService | null>(null);
 const authVisible = ref(false);
+const authorizing = ref(false);
 const appsSection = ref<HTMLElement | null>(null);
 const me = ref<{ isAdmin?: boolean } | null>(null);
 const featuredService = computed(() =>
   services.value.find((service) => service.featured) || services.value[0] || null
 );
+const docsServices = computed(() => services.value.filter((service) => service.docsUrl));
 
 function serviceTitle(service?: PortalService | null) {
   return service?.displayTitle || service?.name || appName.value;
@@ -195,8 +228,49 @@ function openAuth(service?: PortalService | null) {
   authVisible.value = true;
 }
 
-function openService(service?: PortalService | null) {
-  openAuth(service || null);
+async function openService(service?: PortalService | null) {
+  if (!service) {
+    openAuth();
+    return;
+  }
+
+  if (!me.value) {
+    openAuth(service);
+    return;
+  }
+
+  authorizing.value = true;
+
+  try {
+    const result = await $fetch<{
+      status: "authorized" | "needs_onboarding" | "needs_access";
+      redirectUrl: string;
+    }>("/api/portal/authorize", {
+      method: "POST",
+      body: {
+        serviceId: service.id,
+        theme: theme.value,
+        locale: locale.value
+      }
+    });
+
+    if (result.status === "authorized") {
+      await navigateTo(result.redirectUrl, { external: true });
+      return;
+    }
+
+    await navigateTo(result.redirectUrl);
+  } catch (error: any) {
+    if (error?.statusCode === 401 || error?.response?.status === 401) {
+      me.value = null;
+      openAuth(service);
+      return;
+    }
+
+    ElMessage.error(localizeError(error, "error.serviceAuthorizeFailed"));
+  } finally {
+    authorizing.value = false;
+  }
 }
 
 function openFeatured() {
@@ -229,17 +303,33 @@ async function load() {
     loading.value = false;
   }
 
+  await loadUser();
+
+  const serviceId = String(route.query.service_id || "");
+  const target = services.value.find((service) => service.id === serviceId) || null;
+  if (target && me.value && !route.query.client_id) {
+    await openService(target);
+    return;
+  }
+
+  if (props.openAuthOnMount || route.query.client_id || target) {
+    openAuth(target);
+  }
+}
+
+watch(
+  () => route.fullPath,
+  () => {
+    docsMenuOpen.value = false;
+  }
+);
+
+async function loadUser() {
   try {
     const result = await $fetch<{ user: { isAdmin?: boolean } }>("/api/auth/me");
     me.value = result.user;
   } catch {
     me.value = null;
-  }
-
-  const serviceId = String(route.query.service_id || "");
-  const target = services.value.find((service) => service.id === serviceId) || null;
-  if (props.openAuthOnMount || route.query.client_id || target) {
-    openAuth(target);
   }
 }
 
@@ -312,6 +402,44 @@ onMounted(load);
 .portal-nav__links button:hover,
 .portal-nav__links a:hover {
   color: var(--page-text);
+}
+
+.portal-docs {
+  position: relative;
+}
+
+.portal-docs__menu {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 45;
+  display: grid;
+  gap: 6px;
+  width: min(280px, calc(100vw - 32px));
+  border: 1px solid var(--page-border);
+  border-radius: 16px;
+  padding: 8px;
+  background: rgba(13, 15, 18, 0.94);
+  box-shadow: 0 22px 64px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(20px);
+}
+
+.portal-docs__menu a,
+.portal-docs__empty {
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--page-muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.portal-docs__menu a:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--page-text);
+}
+
+.portal-docs__empty {
+  cursor: default;
 }
 
 .portal-signin,
@@ -512,6 +640,32 @@ onMounted(load);
   padding: 28px;
 }
 
+.portal-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.portal-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(18px);
+  cursor: pointer;
+}
+
+.portal-modal__panel {
+  position: relative;
+  z-index: 1;
+  width: min(680px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+}
+
 @media (max-width: 960px) {
   .portal-nav {
     align-items: flex-start;
@@ -522,6 +676,11 @@ onMounted(load);
     order: 3;
     width: 100%;
     justify-content: space-between;
+  }
+
+  .portal-docs__menu {
+    right: auto;
+    left: 0;
   }
 
   .portal-hero {

@@ -358,6 +358,11 @@
                   <div class="muted">{{ row.slug }} · {{ row.featured ? t("admin.featured") : t("portal.showcaseEyebrow") }}</div>
                 </template>
               </el-table-column>
+              <el-table-column :label="t('admin.appSortOrder')" width="110" align="center">
+                <template #default="{ row }">
+                  <span class="sort-order-chip">{{ Number(row.showcaseOrder || 0) }}</span>
+                </template>
+              </el-table-column>
               <el-table-column prop="clientId" :label="t('admin.clientId')" min-width="240" />
               <el-table-column :label="t('admin.callback')" min-width="280">
                 <template #default="{ row }">
@@ -553,81 +558,6 @@
             </div>
           </el-tab-pane>
 
-          <el-tab-pane :label="t('admin.tabDonation')" name="donation">
-            <div class="donation-admin">
-              <div class="admin-toolbar">
-                <label class="checkbox-line donation-admin__enabled">
-                  <input v-model="donationForm.enabled" type="checkbox" />
-                  <span>{{ t("common.enabled") }}</span>
-                </label>
-                <button
-                  class="ghost-btn compact-admin-btn"
-                  type="button"
-                  :disabled="donationUploading || donationForm.imageUrls.length >= maxDonationImages"
-                  @click="chooseDonationImage"
-                >
-                  {{ donationUploading ? t("common.loading") : t("admin.uploadDonationImage") }}
-                </button>
-                <span class="muted donation-admin__help">
-                  {{ t("admin.donationUploadHelp", { count: donationForm.imageUrls.length, max: maxDonationImages }) }}
-                </span>
-                <input
-                  ref="donationImageInput"
-                  class="hidden-input"
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  @change="uploadDonationImage"
-                />
-              </div>
-
-              <div class="form-grid admin-form-grid">
-                <label>
-                  <span class="field-label">{{ t("admin.donationTitle") }}</span>
-                  <input
-                    v-model="donationForm.title"
-                    class="field-input"
-                    maxlength="80"
-                    :placeholder="t('admin.donationTitlePlaceholder')"
-                  />
-                </label>
-                <label class="wide-field">
-                  <span class="field-label">{{ t("admin.donationDescription") }}</span>
-                  <textarea
-                    v-model="donationForm.description"
-                    class="field-textarea donation-admin__textarea"
-                    maxlength="2000"
-                    :placeholder="t('admin.donationDescriptionPlaceholder')"
-                  />
-                </label>
-              </div>
-
-              <div v-if="donationForm.imageUrls.length" class="donation-admin__images">
-                <article
-                  v-for="(url, index) in donationForm.imageUrls"
-                  :key="url"
-                  class="donation-admin__image"
-                >
-                  <a :href="url" target="_blank" rel="noreferrer">
-                    <img :src="url" :alt="t('donation.imageAlt', { index: index + 1 })">
-                  </a>
-                  <button class="danger-btn compact-admin-btn" type="button" @click="removeDonationImage(index)">
-                    {{ t("common.delete") }}
-                  </button>
-                </article>
-              </div>
-              <p v-else class="portal-note">{{ t("admin.donationNoImages") }}</p>
-
-              <div class="action-row donation-admin__actions">
-                <button class="primary-btn compact-admin-btn" type="button" :disabled="donationSaving" @click="saveDonation">
-                  {{ donationSaving ? t("common.loading") : t("common.save") }}
-                </button>
-                <span class="muted">
-                  {{ t("admin.donationUpdatedAt", { time: formatDateTime(donationUpdatedAt) }) }}
-                </span>
-              </div>
-            </div>
-          </el-tab-pane>
-
           <el-tab-pane :label="t('admin.tabFeedback')" name="feedback">
             <div class="admin-toolbar">
               <input
@@ -814,8 +744,15 @@
           </select>
         </label>
         <label>
-          <span class="field-label">{{ t("admin.sortOrder") }}</span>
-          <input v-model.number="serviceForm.showcaseOrder" class="field-input" type="number" />
+          <span class="field-label">{{ t("admin.appSortOrder") }}</span>
+          <input
+            v-model.number="serviceForm.showcaseOrder"
+            class="field-input"
+            min="0"
+            step="1"
+            type="number"
+            :placeholder="t('admin.appSortOrderPlaceholder')"
+          />
         </label>
         <label class="wide-field">
           <span class="field-label">{{ t("admin.tags") }}</span>
@@ -997,21 +934,11 @@ type ServiceOption = {
   allowInviteAccess: boolean;
 };
 
-type DonationSetting = {
-  id: string;
-  title: string;
-  description: string;
-  imageUrls: string[];
-  enabled: boolean;
-  updatedAt: string | null;
-};
-
 const activeTab = ref("requests");
 const loading = ref(true);
 const errorMessage = ref("");
 const { t, localizeError, locale } = usePortalI18n();
 const pageSizes = [10, 20, 50, 100];
-const maxDonationImages = 12;
 const globalAnnouncementServiceId = "__global";
 const summary = reactive({
   users: 0,
@@ -1055,10 +982,6 @@ const inviteDialogVisible = ref(false);
 const serviceDialogVisible = ref(false);
 const announcementDialogVisible = ref(false);
 const openSourceDialogVisible = ref(false);
-const donationSaving = ref(false);
-const donationUploading = ref(false);
-const donationUpdatedAt = ref("");
-const donationImageInput = ref<HTMLInputElement | null>(null);
 
 const requestQuery = reactive({
   page: 1,
@@ -1165,13 +1088,6 @@ const announcementForm = reactive({
   serviceId: "",
   sortOrder: 0,
   enabled: true
-});
-
-const donationForm = reactive({
-  title: "",
-  description: "",
-  imageUrls: [] as string[],
-  enabled: false
 });
 
 function userTag(status: UserStatus) {
@@ -1365,14 +1281,6 @@ function resetFilters(state: ListQuery) {
   loadAll();
 }
 
-function setDonationForm(donation: DonationSetting) {
-  donationForm.title = donation.title || "";
-  donationForm.description = donation.description || "";
-  donationForm.imageUrls = [...(donation.imageUrls || [])].slice(0, maxDonationImages);
-  donationForm.enabled = donation.enabled === true;
-  donationUpdatedAt.value = donation.updatedAt || "";
-}
-
 function formatInviteFileStamp(date = new Date()) {
   const pad = (value: number) => String(value).padStart(2, "0");
   return [
@@ -1414,8 +1322,7 @@ async function loadAll() {
       announcementResult,
       openSourceResult,
       feedbackResult,
-      serviceOptionResult,
-      donationResult
+      serviceOptionResult
     ] = await Promise.all([
       $fetch<typeof summary>("/api/admin/summary"),
       $fetch<{ users: any[]; total: number }>("/api/admin/users", { query: listQueryParams(userQuery) }),
@@ -1425,8 +1332,7 @@ async function loadAll() {
       $fetch<{ announcements: any[]; total: number }>("/api/admin/announcements", { query: listQueryParams(announcementQuery) }),
       $fetch<{ credits: any[]; total: number }>("/api/admin/open-source-credits", { query: listQueryParams(openSourceQuery) }),
       $fetch<{ feedback: any[]; total: number }>("/api/admin/feedback", { query: listQueryParams(feedbackQuery) }),
-      $fetch<{ services: ServiceOption[] }>("/api/admin/service-options"),
-      $fetch<{ donation: DonationSetting }>("/api/admin/donation")
+      $fetch<{ services: ServiceOption[] }>("/api/admin/service-options")
     ]);
 
     Object.assign(summary, summaryResult);
@@ -1445,7 +1351,6 @@ async function loadAll() {
     feedbackList.value = feedbackResult.feedback;
     feedbackQuery.total = feedbackResult.total;
     serviceOptions.value = serviceOptionResult.services;
-    setDonationForm(donationResult.donation);
   } catch (error: any) {
     errorMessage.value = localizeError(error, "error.loadAdmin");
   } finally {
@@ -1564,7 +1469,7 @@ function resetServiceForm() {
   serviceForm.videoUrl = "";
   serviceForm.mediaType = "image";
   serviceForm.tagsText = "";
-  serviceForm.showcaseOrder = 0;
+  serviceForm.showcaseOrder = nextServiceOrder();
   serviceForm.featured = false;
   serviceForm.homeUrl = "";
   serviceForm.healthCheckUrl = "";
@@ -1579,6 +1484,15 @@ function resetServiceForm() {
 function openServiceCreate() {
   resetServiceForm();
   serviceDialogVisible.value = true;
+}
+
+function nextServiceOrder() {
+  const maxOrder = services.value.reduce((max, service) => {
+    const order = Number(service.showcaseOrder || 0);
+    return Number.isFinite(order) && order > max ? order : max;
+  }, 0);
+
+  return maxOrder + 10;
 }
 
 function openServiceEdit(row: any) {
@@ -1817,72 +1731,6 @@ async function deleteOpenSourceCredit(id: string) {
   }
 }
 
-function chooseDonationImage() {
-  donationImageInput.value?.click();
-}
-
-function removeDonationImage(index: number) {
-  donationForm.imageUrls.splice(index, 1);
-}
-
-async function uploadDonationImage(event: Event) {
-  const input = event.target as HTMLInputElement;
-  const file = input.files?.[0];
-  if (!file) {
-    return;
-  }
-
-  if (donationForm.imageUrls.length >= maxDonationImages) {
-    ElMessage.error(t("error.donationImageLimit", { max: maxDonationImages }));
-    input.value = "";
-    return;
-  }
-
-  donationUploading.value = true;
-
-  try {
-    const form = new FormData();
-    form.append("file", file);
-    const result = await $fetch<{ file: { url: string } }>("/api/admin/donation/upload", {
-      method: "POST",
-      body: form
-    });
-
-    if (!donationForm.imageUrls.includes(result.file.url)) {
-      donationForm.imageUrls.push(result.file.url);
-    }
-    ElMessage.success(t("notice.donationImageUploaded"));
-  } catch (error: any) {
-    ElMessage.error(localizeError(error, "error.donationUploadFailed"));
-  } finally {
-    donationUploading.value = false;
-    input.value = "";
-  }
-}
-
-async function saveDonation() {
-  donationSaving.value = true;
-
-  try {
-    const result = await $fetch<{ donation: DonationSetting }>("/api/admin/donation", {
-      method: "PATCH",
-      body: {
-        title: donationForm.title,
-        description: donationForm.description,
-        imageUrls: donationForm.imageUrls,
-        enabled: donationForm.enabled
-      }
-    });
-
-    setDonationForm(result.donation);
-    ElMessage.success(t("notice.donationSaved"));
-  } catch (error: any) {
-    ElMessage.error(localizeError(error, "error.donationFailed"));
-  } finally {
-    donationSaving.value = false;
-  }
-}
-
 async function updateFeedback(id: string, status: FeedbackStatus) {
   try {
     await $fetch(`/api/admin/feedback/${id}`, {
@@ -2100,60 +1948,17 @@ html[data-theme="dark"] .server-card__error {
   white-space: pre-wrap;
 }
 
-.hidden-input {
-  display: none;
-}
-
-.donation-admin {
-  display: grid;
-  gap: 14px;
-}
-
-.donation-admin__enabled {
-  min-width: 104px;
-}
-
-.donation-admin__help {
-  font-size: 13px;
-}
-
-.donation-admin__textarea {
-  min-height: 150px;
-}
-
-.donation-admin__images {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
-}
-
-.donation-admin__image {
-  display: grid;
-  gap: 10px;
-  padding: 10px;
+.sort-order-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 42px;
+  min-height: 28px;
   border: 1px solid var(--page-border);
-  border-radius: 12px;
-  background: var(--page-surface-soft);
-}
-
-.donation-admin__image a {
-  display: grid;
-  place-items: center;
-  min-height: 160px;
-  overflow: hidden;
-  border-radius: 10px;
-  background: var(--page-surface-strong);
-}
-
-.donation-admin__image img {
-  display: block;
-  width: 100%;
-  max-height: 260px;
-  object-fit: contain;
-}
-
-.donation-admin__actions {
-  padding-top: 2px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--page-text);
+  font-weight: 700;
 }
 
 @media (max-width: 960px) {

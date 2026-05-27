@@ -105,6 +105,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   "update:modelValue": [value: boolean];
+  authenticated: [];
 }>();
 
 const route = useRoute();
@@ -191,7 +192,13 @@ async function continueAfterAuth() {
   }
 
   const me = await $fetch<{ status: string; isAdmin?: boolean }>("/api/portal/me");
-  await navigateTo(me.isAdmin ? "/admin" : "/");
+  if (me.isAdmin) {
+    await navigateTo("/admin");
+    return;
+  }
+
+  emit("authenticated");
+  close();
 }
 
 async function submitEmailAuth() {

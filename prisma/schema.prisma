@@ -231,18 +231,6 @@ model OpenSourceCredit {
   @@index([sortOrder])
 }
 
-model DonationSetting {
-  id          String   @id
-  title       String   @default("捐赠支持")
-  description String   @db.Text
-  imageUrls   Json
-  enabled     Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([enabled])
-}
-
 model Announcement {
   id        String      @id @default(cuid())
   title     String
