@@ -24,7 +24,6 @@
         <div class="portal-hero__copy">
           <p class="eyebrow">{{ t("portal.eyebrow") }}</p>
           <h1>{{ t("portal.title", { name: appName }) }}</h1>
-          <p>{{ t("portal.subtitle") }}</p>
           <div class="portal-hero__actions">
             <button class="primary-btn" type="button" @click="openFeatured">
               {{ t("portal.start") }}
