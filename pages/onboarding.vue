@@ -64,7 +64,7 @@
       <section v-if="!canUseInvite && !canRequestAccess" class="panel-card panel-card--strong onboarding-card">
         <h2>{{ t("onboarding.notOpenTitle") }}</h2>
         <p class="muted">{{ t("onboarding.notOpenHelp") }}</p>
-        <NuxtLink class="ghost-btn" to="/apps">{{ t("common.backToApps") }}</NuxtLink>
+        <NuxtLink class="ghost-btn" to="/">{{ t("common.backToApps") }}</NuxtLink>
       </section>
     </div>
 
@@ -131,7 +131,7 @@ function nextLoginUrl() {
     }
   }
   if (!hasExternalFlow) {
-    return "/apps";
+    return "/";
   }
   params.set("theme", theme.value);
   params.set("locale", locale.value);

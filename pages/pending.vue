@@ -7,7 +7,7 @@
         {{ t("pending.text") }}
       </p>
       <div class="action-row">
-        <NuxtLink class="ghost-btn" to="/apps">{{ t("pending.refresh") }}</NuxtLink>
+        <NuxtLink class="ghost-btn" to="/">{{ t("pending.refresh") }}</NuxtLink>
         <NuxtLink class="ghost-btn" to="/login">{{ t("pending.backLogin") }}</NuxtLink>
       </div>
     </section>

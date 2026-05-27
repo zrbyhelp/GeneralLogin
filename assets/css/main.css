@@ -318,13 +318,36 @@ html[data-theme="dark"] .badge--danger {
 
 html[data-theme="dark"] .el-table,
 html[data-theme="dark"] .el-table__expanded-cell {
-  --el-table-bg-color: rgba(25, 35, 55, 0.98);
-  --el-table-tr-bg-color: rgba(25, 35, 55, 0.98);
-  --el-table-header-bg-color: rgba(35, 48, 73, 0.98);
-  --el-table-header-text-color: #f8fafc;
-  --el-table-text-color: #eef4ff;
-  --el-table-row-hover-bg-color: rgba(71, 85, 105, 0.46);
-  --el-table-border-color: rgba(203, 213, 225, 0.22);
+  --el-table-bg-color: rgba(13, 14, 18, 0.98);
+  --el-table-tr-bg-color: rgba(13, 14, 18, 0.98);
+  --el-table-header-bg-color: rgba(246, 241, 232, 0.12);
+  --el-table-header-text-color: #f6f1e8;
+  --el-table-text-color: #f8f5ee;
+  --el-table-row-hover-bg-color: rgba(246, 241, 232, 0.1);
+  --el-table-border-color: rgba(246, 241, 232, 0.18);
+  --el-table-current-row-bg-color: rgba(246, 241, 232, 0.12);
+  background: rgba(13, 14, 18, 0.98);
+  color: #f8f5ee;
+}
+
+html[data-theme="dark"] .el-table th.el-table__cell {
+  background: rgba(246, 241, 232, 0.12);
+  color: #f6f1e8;
+  font-weight: 800;
+}
+
+html[data-theme="dark"] .el-table td.el-table__cell,
+html[data-theme="dark"] .el-table .cell {
+  color: #f8f5ee;
+}
+
+html[data-theme="dark"] .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+html[data-theme="dark"] .el-table__fixed-right,
+html[data-theme="dark"] .el-table__fixed {
+  background: rgba(13, 14, 18, 0.98);
 }
 
 html[data-theme="dark"] .el-tabs,

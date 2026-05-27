@@ -8,7 +8,7 @@
         </p>
       </div>
       <div class="action-row">
-        <NuxtLink class="ghost-btn" to="/apps">{{ t("admin.backApps") }}</NuxtLink>
+        <NuxtLink class="ghost-btn" to="/">{{ t("admin.backApps") }}</NuxtLink>
         <ClientOnly>
           <AuthActions />
         </ClientOnly>

@@ -12,7 +12,9 @@
       </nav>
       <div class="portal-nav__actions">
         <NuxtLink v-if="me?.isAdmin" class="ghost-btn portal-admin-link" to="/admin">{{ t("apps.admin") }}</NuxtLink>
-        <NuxtLink v-if="me" class="primary-btn portal-signin" to="/apps">{{ t("portal.myApps") }}</NuxtLink>
+        <ClientOnly v-if="me">
+          <AuthActions />
+        </ClientOnly>
         <button v-else class="primary-btn portal-signin" type="button" @click="openAuth()">
           {{ t("common.login") }}
         </button>
@@ -23,7 +25,10 @@
       <section class="portal-hero">
         <div class="portal-hero__copy">
           <p class="eyebrow">{{ t("portal.eyebrow") }}</p>
-          <h1>{{ t("portal.title", { name: appName }) }}</h1>
+          <h1>
+            <span>{{ t("portal.titleLine1") }}</span>
+            <span>{{ t("portal.titleLine2") }}</span>
+          </h1>
           <div class="portal-hero__actions">
             <button class="primary-btn" type="button" @click="openFeatured">
               {{ t("portal.start") }}
@@ -310,7 +315,8 @@ onMounted(load);
 }
 
 .portal-signin,
-.portal-admin-link {
+.portal-admin-link,
+:deep(.account-button) {
   min-height: 40px;
 }
 
@@ -329,11 +335,17 @@ onMounted(load);
 }
 
 .portal-hero__copy h1 {
+  display: grid;
+  gap: clamp(14px, 1.8vw, 26px);
   max-width: 760px;
   margin: 0;
   font-size: clamp(52px, 7.6vw, 112px);
   line-height: 0.88;
   letter-spacing: 0;
+}
+
+.portal-hero__copy h1 span {
+  display: block;
 }
 
 .portal-hero__copy p:not(.eyebrow) {

@@ -191,7 +191,7 @@ async function continueAfterAuth() {
   }
 
   const me = await $fetch<{ status: string; isAdmin?: boolean }>("/api/portal/me");
-  await navigateTo(me.isAdmin ? "/admin" : "/apps");
+  await navigateTo(me.isAdmin ? "/admin" : "/");
 }
 
 async function submitEmailAuth() {

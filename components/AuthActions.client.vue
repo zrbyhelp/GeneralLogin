@@ -10,15 +10,12 @@
           <span class="auth-actions__name">{{ displayName }}</span>
         </button>
         <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item command="profile">{{ t("common.profile") }}</el-dropdown-item>
-            <el-dropdown-item command="password">{{ t("common.changePassword") }}</el-dropdown-item>
-            <el-dropdown-item command="theme">
-              {{ theme === "light" ? t("common.themeDark") : t("common.themeLight") }}
-            </el-dropdown-item>
-            <el-dropdown-item command="locale">
-              {{ locale === "zh" ? t("common.en") : t("common.zh") }}
-            </el-dropdown-item>
+            <el-dropdown-menu>
+              <el-dropdown-item command="profile">{{ t("common.profile") }}</el-dropdown-item>
+              <el-dropdown-item command="password">{{ t("common.changePassword") }}</el-dropdown-item>
+              <el-dropdown-item command="locale">
+                {{ locale === "zh" ? t("common.en") : t("common.zh") }}
+              </el-dropdown-item>
             <el-dropdown-item divided command="logout">{{ t("common.logout") }}</el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -112,7 +109,7 @@ const savingProfile = ref(false);
 const savingPassword = ref(false);
 const uploadingAvatar = ref(false);
 const avatarInput = ref<HTMLInputElement | null>(null);
-const { t, localizeError, theme, locale, toggleTheme, setLocale } = usePortalI18n();
+const { t, localizeError, locale, setLocale } = usePortalI18n();
 
 const profileForm = reactive({
   name: "",
@@ -244,8 +241,6 @@ async function handleCommand(command: string) {
     openProfile();
   } else if (command === "password") {
     openPassword();
-  } else if (command === "theme") {
-    toggleTheme();
   } else if (command === "locale") {
     setLocale(locale.value === "zh" ? "en" : "zh");
   } else if (command === "logout") {

@@ -22,7 +22,7 @@ export default defineNuxtConfig({
     minioRegion: "us-east-1",
     minioPublicBaseUrl: "http://localhost:9000/zr-access-portal",
     public: {
-      appName: "ZR-AI服务",
+      appName: "栖境应用工坊",
       appUrl: "http://localhost:3000",
       defaultCallbackUrl: ""
     }
@@ -30,7 +30,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       htmlAttrs: { lang: "zh-CN" },
-      title: "ZR-AI服务",
+      title: "栖境应用工坊",
       meta: [
         { name: "viewport", content: "width=device-width, initial-scale=1" },
         {

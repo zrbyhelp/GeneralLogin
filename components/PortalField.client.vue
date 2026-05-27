@@ -790,6 +790,7 @@ onBeforeUnmount(() => {
   display: block;
   width: 100vw;
   height: 100vh;
+  opacity: 0.42;
   pointer-events: none;
   touch-action: none;
 }
