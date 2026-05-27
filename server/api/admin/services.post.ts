@@ -18,12 +18,32 @@ function validateAbsoluteUrl(value: string, label: string) {
   }
 }
 
+function cleanTags(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
 export default defineEventHandler(async (event) => {
   const admin = await requireAdminUser(event);
   const body = await readBody<{
     name?: string;
     slug?: string;
     description?: string;
+    displayTitle?: string;
+    shortIntro?: string;
+    coverImageUrl?: string;
+    videoUrl?: string;
+    mediaType?: string;
+    tags?: string[];
+    showcaseOrder?: number;
+    featured?: boolean;
     homeUrl?: string;
     healthCheckUrl?: string;
     docsUrl?: string;
@@ -38,6 +58,10 @@ export default defineEventHandler(async (event) => {
   const homeUrl = body.homeUrl?.trim();
   const healthCheckUrl = body.healthCheckUrl?.trim() || null;
   const docsUrl = body.docsUrl?.trim() || null;
+  const coverImageUrl = body.coverImageUrl?.trim() || null;
+  const videoUrl = body.videoUrl?.trim() || null;
+  const mediaType = body.mediaType === "video" ? "video" : "image";
+  const tags = cleanTags(body.tags);
   const callbackUrls = cleanCallbackUrls(body.callbackUrls);
 
   if (!name || !slug || !homeUrl || !callbackUrls.length) {
@@ -54,6 +78,12 @@ export default defineEventHandler(async (event) => {
   if (docsUrl) {
     validateAbsoluteUrl(docsUrl, "文档地址");
   }
+  if (coverImageUrl) {
+    validateAbsoluteUrl(coverImageUrl, "封面图地址");
+  }
+  if (videoUrl) {
+    validateAbsoluteUrl(videoUrl, "视频地址");
+  }
   callbackUrls.forEach((url) => validateAbsoluteUrl(url, "回调地址"));
 
   const clientId = `svc_${generateToken(12)}`;
@@ -63,6 +93,14 @@ export default defineEventHandler(async (event) => {
       name,
       slug,
       description: body.description?.trim() || null,
+      displayTitle: body.displayTitle?.trim() || null,
+      shortIntro: body.shortIntro?.trim() || null,
+      coverImageUrl,
+      videoUrl,
+      mediaType,
+      tags,
+      showcaseOrder: Number.isFinite(body.showcaseOrder) ? Number(body.showcaseOrder) : 0,
+      featured: Boolean(body.featured),
       homeUrl,
       healthCheckUrl,
       docsUrl,
@@ -88,6 +126,14 @@ export default defineEventHandler(async (event) => {
       id: service.id,
       name: service.name,
       slug: service.slug,
+      displayTitle: service.displayTitle,
+      shortIntro: service.shortIntro,
+      coverImageUrl: service.coverImageUrl,
+      videoUrl: service.videoUrl,
+      mediaType: service.mediaType,
+      tags,
+      showcaseOrder: service.showcaseOrder,
+      featured: service.featured,
       homeUrl: service.homeUrl,
       healthCheckUrl: service.healthCheckUrl,
       docsUrl: service.docsUrl,

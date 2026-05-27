@@ -8,6 +8,18 @@ function safeHost(value: string) {
   }
 }
 
+function normalizeTags(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
 async function checkServiceHealth(url?: string | null) {
   if (!url) {
     return "online";
@@ -34,6 +46,15 @@ export default defineEventHandler(async () => {
       name: true,
       slug: true,
       clientId: true,
+      description: true,
+      displayTitle: true,
+      shortIntro: true,
+      coverImageUrl: true,
+      videoUrl: true,
+      mediaType: true,
+      tags: true,
+      showcaseOrder: true,
+      featured: true,
       homeUrl: true,
       healthCheckUrl: true,
       docsUrl: true
@@ -46,6 +67,15 @@ export default defineEventHandler(async () => {
       name: service.name,
       slug: service.slug,
       clientId: service.clientId,
+      description: service.description,
+      displayTitle: service.displayTitle,
+      shortIntro: service.shortIntro,
+      coverImageUrl: service.coverImageUrl,
+      videoUrl: service.videoUrl,
+      mediaType: service.mediaType,
+      tags: normalizeTags(service.tags),
+      showcaseOrder: service.showcaseOrder,
+      featured: service.featured,
       host: safeHost(service.homeUrl),
       docsUrl: service.docsUrl,
       status: await checkServiceHealth(service.healthCheckUrl)
@@ -53,6 +83,6 @@ export default defineEventHandler(async () => {
   );
 
   return {
-    services: items
+    services: items.sort((a, b) => a.showcaseOrder - b.showcaseOrder || a.name.localeCompare(b.name))
   };
 });

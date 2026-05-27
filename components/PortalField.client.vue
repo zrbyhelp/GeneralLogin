@@ -77,53 +77,53 @@ onMounted(async () => {
   const DAMPING = 13.5;
   const THEME_PRESETS = [
     {
-      brightnessBase: 1.02,
-      brightnessRange: 0.18,
+      brightnessBase: 0.34,
+      brightnessRange: 0.12,
       palettes: [
-        [[255, 72, 112], [255, 214, 86]],
-        [[55, 236, 222], [126, 154, 255]],
-        [[255, 139, 65], [255, 248, 174]],
-        [[184, 108, 255], [255, 124, 192]]
+        [[42, 45, 54], [246, 241, 232]],
+        [[22, 28, 42], [122, 161, 255]],
+        [[34, 30, 22], [246, 211, 141]],
+        [[26, 28, 31], [146, 228, 213]]
       ]
     },
     {
-      brightnessBase: 1.06,
-      brightnessRange: 0.16,
+      brightnessBase: 0.36,
+      brightnessRange: 0.12,
       palettes: [
-        [[62, 232, 255], [138, 166, 255]],
-        [[156, 255, 228], [255, 255, 255]],
-        [[96, 178, 255], [216, 246, 255]],
-        [[255, 132, 166], [92, 235, 255]]
+        [[30, 42, 58], [142, 180, 255]],
+        [[26, 45, 41], [184, 247, 212]],
+        [[36, 36, 42], [246, 241, 232]],
+        [[38, 28, 38], [214, 163, 255]]
       ]
     },
     {
-      brightnessBase: 1.04,
-      brightnessRange: 0.18,
+      brightnessBase: 0.35,
+      brightnessRange: 0.12,
       palettes: [
-        [[255, 83, 62], [255, 196, 108]],
-        [[255, 110, 176], [255, 234, 158]],
-        [[255, 137, 66], [255, 84, 140]],
-        [[255, 204, 98], [255, 255, 255]]
+        [[42, 31, 25], [246, 211, 141]],
+        [[38, 28, 32], [245, 170, 185]],
+        [[29, 34, 44], [146, 183, 255]],
+        [[36, 36, 36], [246, 241, 232]]
       ]
     },
     {
-      brightnessBase: 1.02,
-      brightnessRange: 0.2,
+      brightnessBase: 0.33,
+      brightnessRange: 0.12,
       palettes: [
-        [[182, 96, 255], [84, 255, 219]],
-        [[255, 116, 202], [255, 241, 137]],
-        [[59, 171, 255], [255, 115, 160]],
-        [[103, 255, 148], [255, 255, 255]]
+        [[35, 29, 44], [180, 148, 255]],
+        [[36, 32, 24], [246, 211, 141]],
+        [[24, 36, 42], [129, 211, 231]],
+        [[30, 40, 35], [151, 237, 188]]
       ]
     },
     {
-      brightnessBase: 1.05,
-      brightnessRange: 0.18,
+      brightnessBase: 0.34,
+      brightnessRange: 0.12,
       palettes: [
-        [[113, 255, 156], [49, 192, 255]],
-        [[255, 94, 150], [255, 212, 94]],
-        [[162, 112, 255], [246, 255, 255]],
-        [[255, 132, 78], [218, 246, 255]]
+        [[28, 42, 35], [151, 237, 188]],
+        [[42, 34, 25], [246, 211, 141]],
+        [[34, 31, 44], [188, 164, 255]],
+        [[28, 36, 44], [188, 220, 255]]
       ]
     }
   ];
@@ -698,9 +698,9 @@ onMounted(async () => {
 
     const radius = POINTER_RADIUS * 0.72;
     const glow = ctx2d.createRadialGradient(pointer.x, pointer.y, 0, pointer.x, pointer.y, radius);
-    glow.addColorStop(0, `rgba(255, 255, 255, ${0.12 * pointer.glow})`);
-    glow.addColorStop(0.34, `rgba(255, 70, 106, ${0.07 * pointer.glow})`);
-    glow.addColorStop(0.72, `rgba(40, 226, 207, ${0.045 * pointer.glow})`);
+    glow.addColorStop(0, `rgba(246, 241, 232, ${0.1 * pointer.glow})`);
+    glow.addColorStop(0.34, `rgba(143, 180, 255, ${0.055 * pointer.glow})`);
+    glow.addColorStop(0.72, `rgba(246, 211, 141, ${0.035 * pointer.glow})`);
     glow.addColorStop(1, "rgba(255, 255, 255, 0)");
     ctx2d.fillStyle = glow;
     ctx2d.fillRect(pointer.x - radius, pointer.y - radius, radius * 2, radius * 2);
@@ -812,10 +812,10 @@ onBeforeUnmount(() => {
 
 .portal-field__swatch,
 .portal-field__jump {
-  border: 1px solid rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(246, 241, 232, 0.18);
   box-shadow:
-    0 0 0 1px rgba(15, 23, 42, 0.18) inset,
-    0 8px 20px rgba(15, 23, 42, 0.16);
+    0 0 0 1px rgba(0, 0, 0, 0.32) inset,
+    0 8px 20px rgba(0, 0, 0, 0.24);
 }
 
 .portal-field__swatch {
@@ -827,23 +827,23 @@ onBeforeUnmount(() => {
 }
 
 .portal-field__swatch:nth-child(1) {
-  background: linear-gradient(135deg, #ff6680, #ffd76b);
+  background: linear-gradient(135deg, #2a2d36, #f6f1e8);
 }
 
 .portal-field__swatch:nth-child(2) {
-  background: linear-gradient(135deg, #34e8d8, #7ca2ff);
+  background: linear-gradient(135deg, #1e2a3a, #8eb4ff);
 }
 
 .portal-field__swatch:nth-child(3) {
-  background: linear-gradient(135deg, #ff6f57, #ffd18b);
+  background: linear-gradient(135deg, #2a1f19, #f6d38d);
 }
 
 .portal-field__swatch:nth-child(4) {
-  background: linear-gradient(135deg, #bb65ff, #54ffd9);
+  background: linear-gradient(135deg, #231d2c, #b494ff);
 }
 
 .portal-field__swatch:nth-child(5) {
-  background: linear-gradient(135deg, #78ff9c, #3fc0ff);
+  background: linear-gradient(135deg, #1c2a23, #97edbc);
 }
 
 .portal-field__swatch.active {
@@ -857,8 +857,8 @@ onBeforeUnmount(() => {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.84);
-  color: #09090b;
+  background: rgba(246, 241, 232, 0.12);
+  color: #f6f1e8;
   font-size: 16px;
   line-height: 1;
   cursor: pointer;

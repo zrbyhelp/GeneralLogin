@@ -36,15 +36,31 @@
 
     <section v-else class="apps-grid">
       <article v-for="app in apps" :key="app.id" class="panel-card app-card">
-        <div>
+        <div class="app-card__media">
+          <video
+            v-if="app.videoUrl && app.mediaType === 'video'"
+            :src="app.videoUrl"
+            muted
+            loop
+            playsinline
+            @mouseenter="playVideo"
+            @mouseleave="pauseVideo"
+          />
+          <img v-else-if="app.coverImageUrl" :src="app.coverImageUrl" :alt="app.displayTitle || app.name">
+          <div v-else class="app-card__fallback">
+            <span>{{ app.name.slice(0, 2).toUpperCase() }}</span>
+          </div>
+        </div>
+        <div class="app-card__body">
           <div class="app-card__badges">
             <span class="badge" :class="app.canAccess ? 'badge--ok' : 'badge--warn'">
               {{ app.canAccess ? t("apps.canAccess") : accessLabel(app) }}
             </span>
             <span class="badge">{{ app.slug }}</span>
+            <span v-for="tag in (app.tags || []).slice(0, 2)" :key="tag" class="badge">{{ tag }}</span>
           </div>
-          <h2>{{ app.name }}</h2>
-          <p class="muted">{{ app.description || t("apps.defaultDescription") }}</p>
+          <h2>{{ app.displayTitle || app.name }}</h2>
+          <p class="muted">{{ app.shortIntro || app.description || t("apps.defaultDescription") }}</p>
         </div>
         <div class="action-row">
           <button v-if="app.canAccess" class="primary-btn" type="button" @click="launch(app)">
@@ -83,6 +99,12 @@ type AppItem = {
   slug: string;
   clientId: string;
   description?: string | null;
+  displayTitle?: string | null;
+  shortIntro?: string | null;
+  coverImageUrl?: string | null;
+  videoUrl?: string | null;
+  mediaType?: string | null;
+  tags?: string[];
   homeUrl: string;
   defaultCallbackUrl: string;
   canAccess: boolean;
@@ -130,6 +152,16 @@ function actionLabel(app: AppItem) {
   if (app.requiresInvite) return t("apps.fillInvite");
   if (app.requiresRequest) return t("apps.requestAccess");
   return t("apps.cannotAccess");
+}
+
+function playVideo(event: Event) {
+  const video = event.currentTarget as HTMLVideoElement;
+  video.play().catch(() => null);
+}
+
+function pauseVideo(event: Event) {
+  const video = event.currentTarget as HTMLVideoElement;
+  video.pause();
 }
 
 async function openAccess(app: AppItem) {
@@ -215,10 +247,51 @@ onMounted(load);
 
 .app-card {
   min-height: 220px;
-  padding: 22px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.app-card__media {
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  border-bottom: 1px solid var(--page-border);
+  border-radius: 24px 24px 0 0;
+  background: #0c0d10;
+}
+
+.app-card__media img,
+.app-card__media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.app-card__fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background:
+    linear-gradient(135deg, rgba(240, 227, 204, 0.16), rgba(95, 148, 255, 0.12)),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px 18px);
+}
+
+.app-card__fallback span {
+  color: var(--page-text);
+  font-size: 48px;
+  font-weight: 800;
+}
+
+.app-card__body,
+.app-card > .action-row {
+  padding: 20px 22px 0;
+}
+
+.app-card > .action-row {
+  padding-bottom: 22px;
 }
 
 .app-card h2 {

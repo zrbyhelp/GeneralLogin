@@ -113,6 +113,14 @@ model ServiceApp {
   name               String
   slug               String              @unique
   description        String?             @db.Text
+  displayTitle       String?
+  shortIntro         String?             @db.Text
+  coverImageUrl      String?             @db.Text
+  videoUrl           String?             @db.Text
+  mediaType          String              @default("image")
+  tags               Json?
+  showcaseOrder      Int                 @default(0)
+  featured           Boolean             @default(false)
   homeUrl            String
   healthCheckUrl     String?             @db.Text
   docsUrl            String?             @db.Text
@@ -133,6 +141,8 @@ model ServiceApp {
   announcements      Announcement[]
 
   @@index([enabled])
+  @@index([showcaseOrder])
+  @@index([featured])
 }
 
 model InviteCodeService {

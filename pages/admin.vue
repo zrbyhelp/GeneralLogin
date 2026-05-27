@@ -354,8 +354,8 @@
             <el-table v-loading="loading" :data="services" stripe>
               <el-table-column :label="t('common.service')" min-width="220">
                 <template #default="{ row }">
-                  <strong>{{ row.name }}</strong>
-                  <div class="muted">{{ row.slug }}</div>
+                  <strong>{{ row.displayTitle || row.name }}</strong>
+                  <div class="muted">{{ row.slug }} · {{ row.featured ? t("admin.featured") : t("portal.showcaseEyebrow") }}</div>
                 </template>
               </el-table-column>
               <el-table-column prop="clientId" :label="t('admin.clientId')" min-width="240" />
@@ -790,6 +790,37 @@
           <span class="field-label">{{ t("admin.serviceDescription") }}</span>
           <input v-model="serviceForm.description" class="field-input" :placeholder="t('admin.serviceDescriptionPlaceholder')" />
         </label>
+        <label>
+          <span class="field-label">{{ t("admin.displayTitle") }}</span>
+          <input v-model="serviceForm.displayTitle" class="field-input" :placeholder="t('admin.displayTitlePlaceholder')" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.shortIntro") }}</span>
+          <input v-model="serviceForm.shortIntro" class="field-input" :placeholder="t('admin.shortIntroPlaceholder')" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.coverImageUrl") }}</span>
+          <input v-model="serviceForm.coverImageUrl" class="field-input" :placeholder="t('admin.coverImageUrlPlaceholder')" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.videoUrl") }}</span>
+          <input v-model="serviceForm.videoUrl" class="field-input" :placeholder="t('admin.videoUrlPlaceholder')" />
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.mediaType") }}</span>
+          <select v-model="serviceForm.mediaType" class="field-input">
+            <option value="image">{{ t("admin.mediaImage") }}</option>
+            <option value="video">{{ t("admin.mediaVideo") }}</option>
+          </select>
+        </label>
+        <label>
+          <span class="field-label">{{ t("admin.sortOrder") }}</span>
+          <input v-model.number="serviceForm.showcaseOrder" class="field-input" type="number" />
+        </label>
+        <label class="wide-field">
+          <span class="field-label">{{ t("admin.tags") }}</span>
+          <input v-model="serviceForm.tagsText" class="field-input" :placeholder="t('admin.tagsPlaceholder')" />
+        </label>
         <label class="wide-field">
           <span class="field-label">{{ t("admin.callbackUrls") }}</span>
           <textarea
@@ -801,6 +832,10 @@
         <label class="checkbox-line">
           <input v-model="serviceForm.enabled" type="checkbox" />
           <span>{{ t("common.enabled") }}</span>
+        </label>
+        <label class="checkbox-line">
+          <input v-model="serviceForm.featured" type="checkbox" />
+          <span>{{ t("admin.featured") }}</span>
         </label>
         <label class="checkbox-line">
           <input v-model="serviceForm.allowDirectAccess" type="checkbox" />
@@ -1097,6 +1132,14 @@ const serviceForm = reactive({
   name: "",
   slug: "",
   description: "",
+  displayTitle: "",
+  shortIntro: "",
+  coverImageUrl: "",
+  videoUrl: "",
+  mediaType: "image",
+  tagsText: "",
+  showcaseOrder: 0,
+  featured: false,
   homeUrl: "",
   healthCheckUrl: "",
   docsUrl: "",
@@ -1265,6 +1308,14 @@ const inviteableServices = computed(() =>
 
 function allowedServiceAccess(row: any) {
   return row.serviceAccess.filter((item: any) => item.allowed);
+}
+
+function splitTags(value: string) {
+  return value
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
 }
 
 function listQueryParams(state: ListQuery) {
@@ -1507,6 +1558,14 @@ function resetServiceForm() {
   serviceForm.name = "";
   serviceForm.slug = "";
   serviceForm.description = "";
+  serviceForm.displayTitle = "";
+  serviceForm.shortIntro = "";
+  serviceForm.coverImageUrl = "";
+  serviceForm.videoUrl = "";
+  serviceForm.mediaType = "image";
+  serviceForm.tagsText = "";
+  serviceForm.showcaseOrder = 0;
+  serviceForm.featured = false;
   serviceForm.homeUrl = "";
   serviceForm.healthCheckUrl = "";
   serviceForm.docsUrl = "";
@@ -1527,6 +1586,14 @@ function openServiceEdit(row: any) {
   serviceForm.name = row.name || "";
   serviceForm.slug = row.slug || "";
   serviceForm.description = row.description || "";
+  serviceForm.displayTitle = row.displayTitle || "";
+  serviceForm.shortIntro = row.shortIntro || "";
+  serviceForm.coverImageUrl = row.coverImageUrl || "";
+  serviceForm.videoUrl = row.videoUrl || "";
+  serviceForm.mediaType = row.mediaType === "video" ? "video" : "image";
+  serviceForm.tagsText = (row.tags || []).join(", ");
+  serviceForm.showcaseOrder = Number(row.showcaseOrder || 0);
+  serviceForm.featured = Boolean(row.featured);
   serviceForm.homeUrl = row.homeUrl || "";
   serviceForm.healthCheckUrl = row.healthCheckUrl || "";
   serviceForm.docsUrl = row.docsUrl || "";
@@ -1544,6 +1611,14 @@ async function saveService() {
       name: serviceForm.name,
       slug: serviceForm.slug,
       description: serviceForm.description,
+      displayTitle: serviceForm.displayTitle,
+      shortIntro: serviceForm.shortIntro,
+      coverImageUrl: serviceForm.coverImageUrl,
+      videoUrl: serviceForm.videoUrl,
+      mediaType: serviceForm.mediaType,
+      tags: splitTags(serviceForm.tagsText),
+      showcaseOrder: Number(serviceForm.showcaseOrder || 0),
+      featured: serviceForm.featured,
       homeUrl: serviceForm.homeUrl,
       healthCheckUrl: serviceForm.healthCheckUrl,
       docsUrl: serviceForm.docsUrl,

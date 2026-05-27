@@ -10,7 +10,8 @@ import {
   canUseService,
   createOrReuseAccessRequest,
   createServiceAuthCode,
-  ensureAllowedCallback
+  ensureAllowedCallback,
+  parseCallbackUrls
 } from "~/server/utils/service-auth";
 import { prisma } from "~/server/utils/prisma";
 import { UserStatus } from "@prisma/client";
@@ -52,13 +53,17 @@ export default defineEventHandler(async (event) => {
 
   const clientId = parsed.clientId || "";
   const callbackUrl = parsed.callbackUrl || "";
+  const serviceId = parsed.serviceId || "";
   const theme = parsed.theme === "dark" || parsed.theme === "light" ? parsed.theme : "";
   const locale = parsed.locale === "en" || parsed.locale === "zh" ? parsed.locale : "";
-  if (clientId && callbackUrl) {
+  if ((clientId && callbackUrl) || serviceId) {
     const service = await prisma.serviceApp.findFirst({
       where: {
         enabled: true,
-        clientId
+        OR: [
+          clientId ? { clientId } : undefined,
+          serviceId ? { id: serviceId } : undefined
+        ].filter(Boolean) as never
       }
     });
 
@@ -66,7 +71,9 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, message: "服务不存在或未启用" });
     }
 
-    ensureAllowedCallback(service, callbackUrl);
+    const targetCallbackUrl = callbackUrl || parseCallbackUrls(service.callbackUrls)[0] || "";
+
+    ensureAllowedCallback(service, targetCallbackUrl);
 
     if (user.status === UserStatus.SUSPENDED) {
       throw createError({ statusCode: 403, message: "账号已停用" });
@@ -78,7 +85,7 @@ export default defineEventHandler(async (event) => {
       const params = new URLSearchParams({
         client_id: service.clientId,
         service_id: service.id,
-        callback: callbackUrl
+        callback: targetCallbackUrl
       });
       if (parsed.state) {
         params.set("state", parsed.state);
@@ -114,11 +121,11 @@ export default defineEventHandler(async (event) => {
     const { rawCode } = await createServiceAuthCode({
       profile: user,
       service,
-      callbackUrl,
+      callbackUrl: targetCallbackUrl,
       state: parsed.state || undefined
     });
 
-    const redirect = new URL(callbackUrl);
+    const redirect = new URL(targetCallbackUrl);
     redirect.searchParams.set("code", rawCode);
     if (parsed.state) {
       redirect.searchParams.set("state", parsed.state);

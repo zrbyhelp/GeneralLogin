@@ -289,6 +289,7 @@ export function buildExternalLoginState(value: {
   state?: string;
   theme?: string;
   locale?: string;
+  serviceId?: string;
 }) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
 }
@@ -303,6 +304,7 @@ export function parseExternalLoginState(value: string) {
       state?: string;
       theme?: string;
       locale?: string;
+      serviceId?: string;
     };
     return parsed;
   } catch {

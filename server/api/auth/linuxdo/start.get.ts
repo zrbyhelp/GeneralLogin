@@ -15,6 +15,7 @@ export default defineEventHandler(async (event) => {
   const state = typeof query.state === "string" ? query.state : "";
   const theme = typeof query.theme === "string" ? query.theme : "";
   const locale = typeof query.locale === "string" ? query.locale : "";
+  const serviceId = typeof query.service_id === "string" ? query.service_id : "";
   const loginHint = typeof query.login_hint === "string" ? query.login_hint : "";
   const agreementAccepted = query.agreement_accepted === "1";
 
@@ -35,7 +36,8 @@ export default defineEventHandler(async (event) => {
       callbackUrl,
       state,
       theme,
-      locale
+      locale,
+      serviceId
     }),
     {
       httpOnly: true,

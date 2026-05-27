@@ -17,6 +17,8 @@ export default defineEventHandler(async (event) => {
       { name: { contains: keyword } },
       { slug: { contains: keyword } },
       { description: { contains: keyword } },
+      { displayTitle: { contains: keyword } },
+      { shortIntro: { contains: keyword } },
       { clientId: { contains: keyword } },
       { homeUrl: { contains: keyword } }
     ];
@@ -57,6 +59,14 @@ export default defineEventHandler(async (event) => {
       name: service.name,
       slug: service.slug,
       description: service.description,
+      displayTitle: service.displayTitle,
+      shortIntro: service.shortIntro,
+      coverImageUrl: service.coverImageUrl,
+      videoUrl: service.videoUrl,
+      mediaType: service.mediaType,
+      tags: Array.isArray(service.tags) ? service.tags : [],
+      showcaseOrder: service.showcaseOrder,
+      featured: service.featured,
       homeUrl: service.homeUrl,
       healthCheckUrl: service.healthCheckUrl,
       docsUrl: service.docsUrl,

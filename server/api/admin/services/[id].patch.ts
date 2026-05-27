@@ -21,6 +21,18 @@ function validateAbsoluteUrl(value: string, label: string) {
   }
 }
 
+function cleanTags(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
 export default defineEventHandler(async (event) => {
   const admin = await requireAdminUser(event);
   const id = getRouterParam(event, "id");
@@ -28,6 +40,14 @@ export default defineEventHandler(async (event) => {
     name?: string;
     slug?: string;
     description?: string;
+    displayTitle?: string;
+    shortIntro?: string;
+    coverImageUrl?: string;
+    videoUrl?: string;
+    mediaType?: string;
+    tags?: string[];
+    showcaseOrder?: number;
+    featured?: boolean;
     homeUrl?: string;
     healthCheckUrl?: string;
     docsUrl?: string;
@@ -48,6 +68,9 @@ export default defineEventHandler(async (event) => {
     ? body.healthCheckUrl.trim()
     : undefined;
   const docsUrl = typeof body.docsUrl === "string" ? body.docsUrl.trim() : undefined;
+  const coverImageUrl = typeof body.coverImageUrl === "string" ? body.coverImageUrl.trim() : undefined;
+  const videoUrl = typeof body.videoUrl === "string" ? body.videoUrl.trim() : undefined;
+  const tags = cleanTags(body.tags);
   if (homeUrl) {
     validateAbsoluteUrl(homeUrl, "入口地址");
   }
@@ -56,6 +79,12 @@ export default defineEventHandler(async (event) => {
   }
   if (docsUrl) {
     validateAbsoluteUrl(docsUrl, "文档地址");
+  }
+  if (coverImageUrl) {
+    validateAbsoluteUrl(coverImageUrl, "封面图地址");
+  }
+  if (videoUrl) {
+    validateAbsoluteUrl(videoUrl, "视频地址");
   }
   if (callbackUrls) {
     if (!callbackUrls.length) {
@@ -71,6 +100,25 @@ export default defineEventHandler(async (event) => {
       slug: body.slug?.trim().toLowerCase() || undefined,
       description:
         typeof body.description === "string" ? body.description.trim() : undefined,
+      displayTitle:
+        typeof body.displayTitle === "string" ? body.displayTitle.trim() || null : undefined,
+      shortIntro:
+        typeof body.shortIntro === "string" ? body.shortIntro.trim() || null : undefined,
+      coverImageUrl:
+        typeof coverImageUrl === "string" ? coverImageUrl || null : undefined,
+      videoUrl: typeof videoUrl === "string" ? videoUrl || null : undefined,
+      mediaType:
+        typeof body.mediaType === "string"
+          ? body.mediaType === "video"
+            ? "video"
+            : "image"
+          : undefined,
+      tags,
+      showcaseOrder:
+        typeof body.showcaseOrder === "number" && Number.isFinite(body.showcaseOrder)
+          ? body.showcaseOrder
+          : undefined,
+      featured: typeof body.featured === "boolean" ? body.featured : undefined,
       homeUrl: homeUrl || undefined,
       healthCheckUrl:
         typeof healthCheckUrl === "string" ? healthCheckUrl || null : undefined,
