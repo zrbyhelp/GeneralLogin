@@ -179,10 +179,6 @@ type PortalService = {
   docsUrl?: string | null;
 };
 
-const props = defineProps<{
-  openAuthOnMount?: boolean;
-}>();
-
 const runtimeConfig = useRuntimeConfig();
 const route = useRoute();
 const { t, localizeError, theme, locale } = usePortalI18n();
@@ -306,13 +302,14 @@ async function load() {
   await loadUser();
 
   const serviceId = String(route.query.service_id || "");
+  const externalLogin = Boolean(route.query.client_id && route.query.callback);
   const target = services.value.find((service) => service.id === serviceId) || null;
-  if (target && me.value && !route.query.client_id) {
+  if (target && me.value && externalLogin) {
     await openService(target);
     return;
   }
 
-  if (props.openAuthOnMount || route.query.client_id || target) {
+  if (externalLogin) {
     openAuth(target);
   }
 }

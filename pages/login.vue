@@ -1,3 +1,3 @@
 <template>
-  <PortalHomeView open-auth-on-mount />
+  <PortalHomeView />
 </template>
