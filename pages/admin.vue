@@ -222,8 +222,11 @@
                   </el-space>
                 </template>
               </el-table-column>
-              <el-table-column :label="t('common.actions')" width="160" fixed="right">
+              <el-table-column :label="t('common.actions')" width="250" fixed="right">
                 <template #default="{ row }">
+                  <el-button size="small" type="warning" plain @click="openPasswordReset(row)">
+                    {{ t("admin.resetUserPassword") }}
+                  </el-button>
                   <el-button
                     v-if="row.status === 'SUSPENDED'"
                     size="small"
@@ -641,6 +644,49 @@
       </section>
     </template>
 
+    <el-dialog
+      v-model="passwordResetDialogVisible"
+      :title="t('admin.resetUserPassword')"
+      width="460px"
+      @closed="resetPasswordResetForm"
+    >
+      <div class="form-grid admin-form-grid">
+        <label class="wide-field">
+          <span class="field-label">{{ t("common.user") }}</span>
+          <strong>{{ passwordResetUser ? userLabel(passwordResetUser) : "-" }}</strong>
+        </label>
+        <label class="wide-field">
+          <span class="field-label">{{ t("common.newPassword") }}</span>
+          <input
+            v-model="passwordResetForm.newPassword"
+            class="field-input"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="t('login.passwordPlaceholder')"
+          />
+        </label>
+        <label class="wide-field">
+          <span class="field-label">{{ t("admin.confirmPassword") }}</span>
+          <input
+            v-model="passwordResetForm.confirmPassword"
+            class="field-input"
+            type="password"
+            autocomplete="new-password"
+            :placeholder="t('admin.confirmPasswordPlaceholder')"
+          />
+        </label>
+      </div>
+      <p class="muted">{{ t("admin.passwordResetSessionNotice") }}</p>
+      <template #footer>
+        <button class="ghost-btn" type="button" :disabled="passwordResetting" @click="passwordResetDialogVisible = false">
+          {{ t("common.cancel") }}
+        </button>
+        <button class="primary-btn" type="button" :disabled="passwordResetting" @click="resetUserPassword">
+          {{ passwordResetting ? t("common.loading") : t("admin.resetUserPassword") }}
+        </button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="inviteDialogVisible" :title="t('admin.createInvite')" width="680px">
       <div class="form-grid admin-form-grid">
         <label>
@@ -982,6 +1028,9 @@ const inviteDialogVisible = ref(false);
 const serviceDialogVisible = ref(false);
 const announcementDialogVisible = ref(false);
 const openSourceDialogVisible = ref(false);
+const passwordResetDialogVisible = ref(false);
+const passwordResetting = ref(false);
+const passwordResetUser = ref<any | null>(null);
 
 const requestQuery = reactive({
   page: 1,
@@ -1045,6 +1094,11 @@ const inviteForm = reactive({
   maxUses: 1,
   expiresAt: "",
   serviceIds: [] as string[]
+});
+
+const passwordResetForm = reactive({
+  newPassword: "",
+  confirmPassword: ""
 });
 const inviteGenerationMode = ref<"single" | "batch">("single");
 const inviteQuantity = ref(2);
@@ -1226,6 +1280,10 @@ function allowedServiceAccess(row: any) {
   return row.serviceAccess.filter((item: any) => item.allowed);
 }
 
+function userLabel(user: any) {
+  return user.account || user.email || user.username || user.id;
+}
+
 function splitTags(value: string) {
   return value
     .split(/\r?\n|,/)
@@ -1391,6 +1449,51 @@ function resetInviteForm() {
   inviteForm.serviceIds = [];
   inviteGenerationMode.value = "single";
   inviteQuantity.value = 2;
+}
+
+function resetPasswordResetForm() {
+  passwordResetForm.newPassword = "";
+  passwordResetForm.confirmPassword = "";
+  passwordResetUser.value = null;
+}
+
+function openPasswordReset(user: any) {
+  resetPasswordResetForm();
+  passwordResetUser.value = user;
+  passwordResetDialogVisible.value = true;
+}
+
+async function resetUserPassword() {
+  if (!passwordResetUser.value) {
+    return;
+  }
+
+  if (passwordResetForm.newPassword !== passwordResetForm.confirmPassword) {
+    ElMessage.error(t("error.passwordConfirmationMismatch"));
+    return;
+  }
+
+  passwordResetting.value = true;
+  try {
+    const result = await $fetch<{ currentSessionRevoked: boolean }>(
+      `/api/admin/users/${passwordResetUser.value.id}/password`,
+      {
+        method: "POST",
+        body: { newPassword: passwordResetForm.newPassword }
+      }
+    );
+    passwordResetDialogVisible.value = false;
+    ElMessage.success(t("notice.userPasswordReset"));
+
+    if (result.currentSessionRevoked) {
+      await navigateTo("/relogin");
+      return;
+    }
+  } catch (error: any) {
+    ElMessage.error(localizeError(error, "error.passwordResetFailed"));
+  } finally {
+    passwordResetting.value = false;
+  }
 }
 
 function openInviteCreate() {
