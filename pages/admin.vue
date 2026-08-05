@@ -40,6 +40,16 @@
         </div>
       </section>
 
+      <ClientOnly>
+        <AdminUserGrowthChart />
+        <template #fallback>
+          <section class="panel-card panel-card--strong growth-card-fallback">
+            <h2>{{ t("admin.userGrowth") }}</h2>
+            <p>{{ t("common.loading") }}</p>
+          </section>
+        </template>
+      </ClientOnly>
+
       <section class="panel-card panel-card--strong server-card">
         <div class="server-card__header">
           <div>
@@ -1882,6 +1892,28 @@ onMounted(() => {
   padding: 18px;
 }
 
+.growth-card-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 414px;
+  margin-top: 16px;
+  padding: 18px;
+  color: var(--page-muted);
+}
+
+.growth-card-fallback h2,
+.growth-card-fallback p {
+  margin: 0;
+}
+
+.growth-card-fallback h2 {
+  color: var(--page-text);
+  font-size: 18px;
+}
+
 .server-card__header {
   display: flex;
   align-items: flex-start;
@@ -2072,6 +2104,10 @@ html[data-theme="dark"] .server-card__error {
 }
 
 @media (max-width: 720px) {
+  .growth-card-fallback {
+    min-height: 424px;
+  }
+
   .admin-toolbar {
     align-items: stretch;
   }
